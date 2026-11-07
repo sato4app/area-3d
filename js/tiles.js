@@ -149,7 +149,7 @@ export function chooseTextureZoom(bounds, mapLayer, maxSize) {
  * 地図タイルを結合して領域ぴったりに切り抜いたキャンバスを返す
  * @returns {{canvas:HTMLCanvasElement, z:number, px:object}}
  */
-export async function loadTexture(bounds, mapLayer, maxSize, onProgress) {
+export async function loadTexture(bounds, mapLayer, maxSize, onProgress, { fillBackground = true } = {}) {
   const z = chooseTextureZoom(bounds, mapLayer, maxSize);
   const px = boundsToPixels(bounds, z);
   const range = tileRange(px);
@@ -158,8 +158,11 @@ export async function loadTexture(bounds, mapLayer, maxSize, onProgress) {
   canvas.width = Math.max(1, Math.round(px.right - px.left));
   canvas.height = Math.max(1, Math.round(px.bottom - px.top));
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#e8ebe4';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // 重ね地図ではタイルの無い所を透明のままにして、下の地図が見えるようにする
+  if (fillBackground) {
+    ctx.fillStyle = '#e8ebe4';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   await runPool(listTiles(range), async ({ x, y }) => {
     const img = await fetchTileImage(tileUrl(mapLayer.url, z, x, y));

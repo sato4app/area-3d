@@ -75,7 +75,20 @@ export async function buildTerrain(opts, onStatus) {
   // ---- 地表テクスチャ ----
   const tex = await loadTexture(bounds, opts.mapLayer, opts.texSize, (d, t) => onStatus(`地図画像取得中 ${d}/${t}`));
 
+  // ---- 重ね地図（半透明で上に重ねる） ----
+  let overlay = null;
+  if (opts.overlayLayer) {
+    overlay = await loadTexture(
+      bounds,
+      opts.overlayLayer,
+      opts.texSize,
+      (d, t) => onStatus(`重ね地図取得中 ${d}/${t}`),
+      { fillBackground: false },
+    );
+  }
+
   // 各頂点のUV（メルカトル投影の画像に合わせて計算）
+  // 画像は領域ぴったりに切り抜いているため、UVはズームレベルに依存せず重ね地図にもそのまま使える
   const uvs = new Float32Array(nx * ny * 2);
   const texW = tex.px.right - tex.px.left;
   const texH = tex.px.bottom - tex.px.top;
@@ -104,6 +117,8 @@ export async function buildTerrain(opts, onStatus) {
     demUsed,
     textureCanvas: tex.canvas,
     textureZoom: tex.z,
+    overlayCanvas: overlay?.canvas ?? null,
+    overlayZoom: overlay?.z ?? null,
   };
 }
 

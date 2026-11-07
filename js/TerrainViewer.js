@@ -13,6 +13,8 @@ export class TerrainViewer {
     this.terrain = null;
     this.group = null;
     this.surface = null;
+    this.overlay = null;
+    this.overlayOpacity = 0.5;
     this.exaggeration = 1;
     this.onHover = null;
 
@@ -85,15 +87,32 @@ export class TerrainViewer {
     geom.setIndex(new THREE.BufferAttribute(index, 1));
     geom.computeVertexNormals();
 
-    const texture = new THREE.CanvasTexture(terrain.textureCanvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-
     this.surface = new THREE.Mesh(
       geom,
-      new THREE.MeshStandardMaterial({ map: texture, roughness: 1, metalness: 0 }),
+      new THREE.MeshStandardMaterial({ map: this._makeTexture(terrain.textureCanvas), roughness: 1, metalness: 0 }),
     );
+
+    // ---- 重ね地図：同じ形状のメッシュを半透明で上に描く ----
+    this.overlay = null;
+    if (terrain.overlayCanvas) {
+      this.overlay = new THREE.Mesh(
+        geom,
+        new THREE.MeshStandardMaterial({
+          map: this._makeTexture(terrain.overlayCanvas),
+          roughness: 1,
+          metalness: 0,
+          transparent: true,
+          opacity: this.overlayOpacity,
+          depthWrite: false,
+          // 地表面とのちらつき（Zファイティング）を防ぐため手前にずらす
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -4,
+        }),
+      );
+      this.overlay.renderOrder = 1;
+      this.overlay.visible = this.overlayOpacity > 0;
+    }
 
     // ---- 側面と底面（ジオラマ風の台座） ----
     const walls = new THREE.Mesh(
@@ -107,6 +126,7 @@ export class TerrainViewer {
 
     this.group = new THREE.Group();
     this.group.add(this.surface, walls, bottom);
+    if (this.overlay) this.group.add(this.overlay);
     this.group.scale.y = this.exaggeration;
     this.scene.add(this.group);
 
@@ -141,6 +161,22 @@ export class TerrainViewer {
     geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
     geom.computeVertexNormals();
     return geom;
+  }
+
+  _makeTexture(canvas) {
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    return texture;
+  }
+
+  /** 重ね地図の濃さ（0〜1） */
+  setOverlayOpacity(value) {
+    this.overlayOpacity = value;
+    if (!this.overlay) return;
+    this.overlay.material.opacity = value;
+    this.overlay.visible = value > 0;
   }
 
   setExaggeration(value) {
@@ -218,11 +254,12 @@ export class TerrainViewer {
     this.scene.remove(this.group);
     this.group.traverse((obj) => {
       if (!obj.isMesh) return;
-      obj.geometry.dispose();
+      obj.geometry.dispose(); // 地表面と重ね地図は同じ形状を共有（2回呼んでも問題なし）
       obj.material.map?.dispose();
       obj.material.dispose();
     });
     this.group = null;
     this.surface = null;
+    this.overlay = null;
   }
 }

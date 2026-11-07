@@ -13,6 +13,9 @@ const els = {
   width: $('width'),
   height: $('height'),
   layer: $('layer'),
+  overlay: $('overlay'),
+  overlayOpacity: $('overlayOpacity'),
+  overlayOpacityOut: $('overlayOpacityOut'),
   dem: $('dem'),
   texSize: $('texSize'),
   buildBtn: $('buildBtn'),
@@ -32,6 +35,7 @@ const els = {
 // ---------- 初期化 ----------
 for (const [key, layer] of Object.entries(MAP_LAYERS)) {
   els.layer.add(new Option(layer.name, key));
+  els.overlay.add(new Option(layer.name, key));
 }
 els.lat.value = DEFAULT_CENTER.lat.toFixed(6);
 els.lon.value = DEFAULT_CENTER.lon.toFixed(6);
@@ -46,6 +50,7 @@ mapSelector.setSize(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
 mapSelector.fitToArea();
 
 const viewer = new TerrainViewer($('viewer'));
+viewer.setOverlayOpacity(readOverlayOpacity());
 viewer.onHover = (h) => {
   if (!h) {
     els.hover.classList.add('hidden');
@@ -92,6 +97,22 @@ for (const el of [els.width, els.height]) {
 
 els.layer.addEventListener('change', () => mapSelector.setBaseLayer(els.layer.value));
 
+function readOverlayOpacity() {
+  return parseInt(els.overlayOpacity.value, 10) / 100;
+}
+
+els.overlay.addEventListener('change', () => {
+  mapSelector.setOverlayLayer(els.overlay.value, readOverlayOpacity());
+});
+
+// 濃さは2D地図・3Dビューの両方に即時反映
+els.overlayOpacity.addEventListener('input', () => {
+  const v = readOverlayOpacity();
+  els.overlayOpacityOut.textContent = Math.round(v * 100);
+  mapSelector.setOverlayOpacity(v);
+  viewer.setOverlayOpacity(v);
+});
+
 // ---------- 3D表示 ----------
 els.buildBtn.addEventListener('click', async () => {
   const center = readCenter();
@@ -110,6 +131,7 @@ els.buildBtn.addEventListener('click', async () => {
         height: size.height,
         dem: els.dem.value,
         mapLayer: MAP_LAYERS[els.layer.value],
+        overlayLayer: els.overlay.value ? MAP_LAYERS[els.overlay.value] : null,
         texSize: parseInt(els.texSize.value, 10),
       },
       showProgress,
@@ -200,7 +222,7 @@ function showInfo(t) {
     ['最低標高', `${t.minH.toFixed(1)} m`],
     ['標高差', `${(t.maxH - t.minH).toFixed(1)} m`],
     ['標高データ', t.demUsed.join(' + ')],
-    ['地図ズーム', `${t.textureZoom}`],
+    ['地図ズーム', t.overlayZoom ? `${t.textureZoom}（重ね地図 ${t.overlayZoom}）` : `${t.textureZoom}`],
     ['メッシュ', `${t.segX} × ${t.segY}`],
   ];
   if (t.missingRatio > 0) rows.push(['データ無し', `${(t.missingRatio * 100).toFixed(1)}%（0mで表示）`]);

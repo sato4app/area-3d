@@ -18,6 +18,7 @@ export class MapSelector {
 
     this.map = L.map(elementId, { zoomControl: true }).setView([center.lat, center.lon], 14);
     this.baseLayer = null;
+    this.overlayLayer = null;
     this.setBaseLayer('std');
 
     this.marker = L.marker([center.lat, center.lon], { draggable: true }).addTo(this.map);
@@ -45,6 +46,25 @@ export class MapSelector {
       maxZoom: 18,
       maxNativeZoom: layer.maxZoom,
     }).addTo(this.map);
+  }
+
+  /** 重ね地図（key が空なら解除） */
+  setOverlayLayer(key, opacity) {
+    if (this.overlayLayer) this.map.removeLayer(this.overlayLayer);
+    this.overlayLayer = null;
+    if (!key) return;
+    const layer = MAP_LAYERS[key];
+    this.overlayLayer = L.tileLayer(layer.url, {
+      attribution: GSI_ATTRIBUTION,
+      maxZoom: 18,
+      maxNativeZoom: layer.maxZoom,
+      opacity,
+      zIndex: 2,
+    }).addTo(this.map);
+  }
+
+  setOverlayOpacity(opacity) {
+    this.overlayLayer?.setOpacity(opacity);
   }
 
   /** 外部（入力欄・検索）から中心点を設定 */

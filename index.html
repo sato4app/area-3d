@@ -52,9 +52,19 @@
 
       <section>
         <h2>表示設定</h2>
-        <label class="field">地図の種類
+        <label class="field">ベース地図
           <select id="layer"></select>
         </label>
+        <label class="field">重ねる地図（半透明）
+          <select id="overlay">
+            <option value="">なし</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>重ねる濃さ <output id="overlayOpacityOut">50</output>%</span>
+          <input type="range" id="overlayOpacity" min="0" max="100" step="5" value="50">
+        </label>
+        <p class="hint">濃さは3D表示後もすぐ反映されます。地図の種類を変えたときは「3D表示」を押し直してください。</p>
         <label class="field">標高データ
           <select id="dem">
             <option value="dem5a">5mメッシュ（無い所は10mで補完）</option>
