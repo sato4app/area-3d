@@ -4,8 +4,13 @@ import { DEFAULT_CENTER, DEFAULT_SIZE, SIZE_LIMIT, MAP_LAYERS, GSI_SEARCH_URL } 
 import { MapSelector } from './MapSelector.js';
 import { TerrainViewer } from './TerrainViewer.js';
 import { buildTerrain } from './TerrainBuilder.js';
+import { setupFloatingPanel, setupSplitter, panelOverlapLeft } from './Layout.js';
 
 const $ = (id) => document.getElementById(id);
+
+// ---------- レイアウト ----------
+setupSplitter($('splitter'), $('views'), $('mapView'));
+setupFloatingPanel($('panel'), $('panelHeader'), $('panelToggle'), $('appBody'));
 
 const els = {
   lat: $('lat'),
@@ -47,7 +52,7 @@ const mapSelector = new MapSelector('map', DEFAULT_CENTER, (c) => {
   els.lon.value = c.lon.toFixed(6);
 });
 mapSelector.setSize(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
-mapSelector.fitToArea();
+fitMapToArea();
 
 const viewer = new TerrainViewer($('viewer'));
 viewer.setOverlayOpacity(readOverlayOpacity());
@@ -91,7 +96,7 @@ for (const el of [els.width, els.height]) {
       return;
     }
     mapSelector.setSize(s.width, s.height);
-    mapSelector.fitToArea();
+    fitMapToArea();
   });
 }
 
@@ -190,7 +195,7 @@ els.searchForm.addEventListener('submit', async (e) => {
         els.lat.value = lat.toFixed(6);
         els.lon.value = lon.toFixed(6);
         mapSelector.setCenter(c);
-        mapSelector.fitToArea();
+        fitMapToArea();
       });
       els.searchResults.appendChild(li);
     }
@@ -227,4 +232,9 @@ function showInfo(t) {
   ];
   if (t.missingRatio > 0) rows.push(['データ無し', `${(t.missingRatio * 100).toFixed(1)}%（0mで表示）`]);
   els.info.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+}
+
+/** 領域全体が見えるように地図を合わせる（パネルに隠れる分だけ右へ寄せる） */
+function fitMapToArea() {
+  mapSelector.fitToArea(panelOverlapLeft($('panel'), $('map')));
 }

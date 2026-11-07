@@ -21,88 +21,15 @@
     <h1>area-3d <span>地理院地図 3D表示</span></h1>
   </header>
 
-  <div class="app-body">
-    <!-- 操作パネル -->
-    <aside class="panel">
-      <section>
-        <h2>場所を検索</h2>
-        <form id="searchForm" class="search-row">
-          <input type="text" id="searchInput" placeholder="地名・山名・住所">
-          <button type="submit">検索</button>
-        </form>
-        <ul id="searchResults" class="search-results"></ul>
-      </section>
-
-      <section>
-        <h2>中心点</h2>
-        <p class="hint">地図をクリック、またはマーカーをドラッグして指定</p>
-        <div class="field-grid">
-          <label>緯度<input type="number" id="lat" step="0.000001"></label>
-          <label>経度<input type="number" id="lon" step="0.000001"></label>
-        </div>
-      </section>
-
-      <section>
-        <h2>領域サイズ</h2>
-        <div class="field-grid">
-          <label>横 x (m)<input type="number" id="width" min="100" max="20000" step="100"></label>
-          <label>縦 y (m)<input type="number" id="height" min="100" max="20000" step="100"></label>
-        </div>
-      </section>
-
-      <section>
-        <h2>表示設定</h2>
-        <label class="field">ベース地図
-          <select id="layer"></select>
-        </label>
-        <label class="field">重ねる地図（半透明）
-          <select id="overlay">
-            <option value="">なし</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>重ねる濃さ <output id="overlayOpacityOut">50</output>%</span>
-          <input type="range" id="overlayOpacity" min="0" max="100" step="5" value="50">
-        </label>
-        <p class="hint">濃さは3D表示後もすぐ反映されます。地図の種類を変えたときは「3D表示」を押し直してください。</p>
-        <label class="field">標高データ
-          <select id="dem">
-            <option value="dem5a">5mメッシュ（無い所は10mで補完）</option>
-            <option value="dem10b">10mメッシュ</option>
-          </select>
-        </label>
-        <label class="field">テクスチャ解像度
-          <select id="texSize">
-            <option value="2048">標準（最大2048px）</option>
-            <option value="4096" selected>高（最大4096px）</option>
-          </select>
-        </label>
-      </section>
-
-      <button id="buildBtn" class="primary">3D表示</button>
-
-      <section>
-        <h2>高さ強調 <output id="exagOut">1.0</output> 倍</h2>
-        <input type="range" id="exag" min="1" max="5" step="0.1" value="1">
-      </section>
-
-      <section class="actions">
-        <button id="resetViewBtn">視点リセット</button>
-        <button id="shotBtn">画像保存</button>
-      </section>
-
-      <section>
-        <h2>情報</h2>
-        <dl id="info" class="info"></dl>
-      </section>
-    </aside>
-
-    <!-- 地図と3Dビュー -->
-    <main class="views">
-      <div class="view">
+  <div class="app-body" id="appBody">
+    <!-- 地図と3Dビュー（境界はドラッグで移動可能） -->
+    <main class="views" id="views">
+      <div class="view" id="mapView">
         <div id="map"></div>
       </div>
-      <div class="view">
+      <div class="splitter" id="splitter" role="separator" aria-orientation="vertical"
+           title="ドラッグで幅を調整（ダブルクリックで半分に戻す）"></div>
+      <div class="view" id="viewerView">
         <div id="viewer"></div>
         <div id="hover" class="hover hidden"></div>
         <div id="progress" class="progress hidden"></div>
@@ -110,6 +37,88 @@
         <div class="attribution">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a></div>
       </div>
     </main>
+
+    <!-- コントロールパネル（地図の上に浮かぶ・見出しをドラッグで移動） -->
+    <aside class="panel" id="panel">
+      <div class="panel-header" id="panelHeader" title="ドラッグで移動">
+        <span class="panel-title">コントロールパネル</span>
+        <button id="panelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
+      </div>
+
+      <div class="panel-body">
+        <section>
+          <h2>場所を検索</h2>
+          <form id="searchForm" class="search-row">
+            <input type="text" id="searchInput" placeholder="地名・山名・住所">
+            <button type="submit">検索</button>
+          </form>
+          <ul id="searchResults" class="search-results"></ul>
+        </section>
+
+        <section>
+          <h2>中心点</h2>
+          <p class="hint">地図をクリック、またはマーカーをドラッグして指定</p>
+          <div class="field-grid">
+            <label>緯度<input type="number" id="lat" step="0.000001"></label>
+            <label>経度<input type="number" id="lon" step="0.000001"></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>領域サイズ</h2>
+          <div class="field-grid">
+            <label>横 x (m)<input type="number" id="width" min="100" max="20000" step="100"></label>
+            <label>縦 y (m)<input type="number" id="height" min="100" max="20000" step="100"></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>表示設定</h2>
+          <label class="field">ベース地図
+            <select id="layer"></select>
+          </label>
+          <label class="field">重ねる地図（半透明）
+            <select id="overlay">
+              <option value="">なし</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>重ねる濃さ <output id="overlayOpacityOut">50</output>%</span>
+            <input type="range" id="overlayOpacity" min="0" max="100" step="5" value="50">
+          </label>
+          <p class="hint">濃さは3D表示後もすぐ反映されます。地図の種類を変えたときは「3D表示」を押し直してください。</p>
+          <label class="field">標高データ
+            <select id="dem">
+              <option value="dem5a">5mメッシュ（無い所は10mで補完）</option>
+              <option value="dem10b">10mメッシュ</option>
+            </select>
+          </label>
+          <label class="field">テクスチャ解像度
+            <select id="texSize">
+              <option value="2048">標準（最大2048px）</option>
+              <option value="4096" selected>高（最大4096px）</option>
+            </select>
+          </label>
+        </section>
+
+        <button id="buildBtn" class="primary">3D表示</button>
+
+        <section>
+          <h2>高さ強調 <output id="exagOut">1.0</output> 倍</h2>
+          <input type="range" id="exag" min="1" max="5" step="0.1" value="1">
+        </section>
+
+        <section class="actions">
+          <button id="resetViewBtn">視点リセット</button>
+          <button id="shotBtn">画像保存</button>
+        </section>
+
+        <section>
+          <h2>情報</h2>
+          <dl id="info" class="info"></dl>
+        </section>
+      </div>
+    </aside>
   </div>
 
   <script type="module" src="js/main.js"></script>

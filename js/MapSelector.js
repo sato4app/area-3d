@@ -16,7 +16,11 @@ export class MapSelector {
     this.center = center;
     this.size = { width: 1000, height: 1000 };
 
-    this.map = L.map(elementId, { zoomControl: true }).setView([center.lat, center.lon], 14);
+    // 左上はコントロールパネルが重なるので、ズームボタンは右上に置く
+    this.map = L.map(elementId, { zoomControl: false }).setView([center.lat, center.lon], 14);
+    L.control.zoom({ position: 'topright' }).addTo(this.map);
+    // 境界のドラッグなどで地図の大きさが変わったら再描画
+    new ResizeObserver(() => this.map.invalidateSize()).observe(this.map.getContainer());
     this.baseLayer = null;
     this.overlayLayer = null;
     this.setBaseLayer('std');
@@ -79,8 +83,11 @@ export class MapSelector {
   }
 
   /** 領域全体が見えるように表示 */
-  fitToArea() {
-    this.map.fitBounds(this.rect.getBounds(), { padding: [30, 30] });
+  fitToArea(insetLeft = 0) {
+    this.map.fitBounds(this.rect.getBounds(), {
+      paddingTopLeft: [30 + insetLeft, 30],
+      paddingBottomRight: [30, 30],
+    });
   }
 
   invalidateSize() {
