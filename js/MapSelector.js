@@ -29,7 +29,6 @@ export class MapSelector {
     this.onSizeChange = onSizeChange;
     this.center = center;
     this.size = { width: 1000, height: 1000 };
-    this._lastDragEnd = -Infinity;
 
     // 左上はコントロールパネルが重なるので、ズームボタンは右上に置く
     this.map = L.map(elementId, { zoomControl: false }).setView([center.lat, center.lon], 14);
@@ -53,16 +52,10 @@ export class MapSelector {
     this.corners = CORNERS.map((c) => this._createCornerHandle(c));
     this._updateCorners();
 
+    // 中心点の移動は中心マーカーのドラッグのみ（地図のタップ・クリックでは動かさない）
     this.marker.on('drag', () => {
       const ll = this.marker.getLatLng();
       this._applyCenter({ lat: ll.lat, lon: ll.lng }, true);
-    });
-    this.marker.on('dragend', () => this._markDragEnd());
-    this.map.on('click', (e) => {
-      // ドラッグを離した直後のクリックは中心点の指定として扱わない
-      // （ハンドルが頂点位置へ戻ると、離した場所の下が地図になるため）
-      if (performance.now() - this._lastDragEnd < 300) return;
-      this._applyCenter({ lat: e.latlng.lat, lon: e.latlng.lng }, true);
     });
   }
 
@@ -164,15 +157,8 @@ export class MapSelector {
       this.onSizeChange?.(this.size);
     });
     // 離したら正しい頂点位置へ（上限・下限で止まった場合もここで揃う）
-    handle.on('dragend', () => {
-      this._markDragEnd();
-      this._updateCorners();
-    });
+    handle.on('dragend', () => this._updateCorners());
     return handle;
-  }
-
-  _markDragEnd() {
-    this._lastDragEnd = performance.now();
   }
 
   _latLngBounds() {
