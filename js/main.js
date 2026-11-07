@@ -47,10 +47,20 @@ els.lon.value = DEFAULT_CENTER.lon.toFixed(6);
 els.width.value = DEFAULT_SIZE.width;
 els.height.value = DEFAULT_SIZE.height;
 
-const mapSelector = new MapSelector('map', DEFAULT_CENTER, (c) => {
-  els.lat.value = c.lat.toFixed(6);
-  els.lon.value = c.lon.toFixed(6);
-});
+const mapSelector = new MapSelector(
+  'map',
+  DEFAULT_CENTER,
+  // 中心点の変更 → パネルの緯度・経度を更新
+  (c) => {
+    els.lat.value = c.lat.toFixed(6);
+    els.lon.value = c.lon.toFixed(6);
+  },
+  // 頂点ドラッグでのサイズ変更 → パネルの横・縦を更新
+  (s) => {
+    els.width.value = s.width;
+    els.height.value = s.height;
+  },
+);
 mapSelector.setSize(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
 fitMapToArea();
 

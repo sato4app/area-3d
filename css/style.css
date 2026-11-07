@@ -23,24 +23,6 @@ body {
   flex-direction: column;
 }
 
-.app-header {
-  padding: 8px 16px;
-  background: var(--accent);
-  color: #fff;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.app-header h1 span {
-  font-size: 13px;
-  font-weight: normal;
-  margin-left: 8px;
-  opacity: 0.85;
-}
-
 .app-body {
   position: relative;
   flex: 1;
@@ -81,8 +63,17 @@ body {
 }
 
 .panel-title {
-  font-weight: bold;
+  margin: 0;
+  font-size: 16px;
   color: var(--accent);
+  white-space: nowrap;
+}
+
+.panel-title span {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--muted);
 }
 
 .icon-btn {
@@ -228,6 +219,18 @@ button.primary:hover { background: var(--accent-hover); }
 }
 
 #mapView { flex: 0 0 50%; }
+
+/* 領域の頂点ハンドル（ドラッグでサイズ変更） */
+.leaflet-marker-icon.corner-handle {
+  box-sizing: border-box;
+  background: #fff;
+  border: 2px solid #d0302b;
+  border-radius: 1px;
+}
+
+.leaflet-marker-icon.corner-handle:hover { background: #d0302b; }
+.leaflet-marker-icon.corner-nwse { cursor: nwse-resize; }
+.leaflet-marker-icon.corner-nesw { cursor: nesw-resize; }
 
 /* 地図と3Dビューの境界（ドラッグで移動） */
 .splitter {
