@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>area-3d - 地理院地図 3D表示</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>area-3d <span>地理院地図 3D表示</span></h1>
+  </header>
+
+  <div class="app-body">
+    <!-- 操作パネル -->
+    <aside class="panel">
+      <section>
+        <h2>場所を検索</h2>
+        <form id="searchForm" class="search-row">
+          <input type="text" id="searchInput" placeholder="地名・山名・住所">
+          <button type="submit">検索</button>
+        </form>
+        <ul id="searchResults" class="search-results"></ul>
+      </section>
+
+      <section>
+        <h2>中心点</h2>
+        <p class="hint">地図をクリック、またはマーカーをドラッグして指定</p>
+        <div class="field-grid">
+          <label>緯度<input type="number" id="lat" step="0.000001"></label>
+          <label>経度<input type="number" id="lon" step="0.000001"></label>
+        </div>
+      </section>
+
+      <section>
+        <h2>領域サイズ</h2>
+        <div class="field-grid">
+          <label>横 x (m)<input type="number" id="width" min="100" max="20000" step="100"></label>
+          <label>縦 y (m)<input type="number" id="height" min="100" max="20000" step="100"></label>
+        </div>
+      </section>
+
+      <section>
+        <h2>表示設定</h2>
+        <label class="field">地図の種類
+          <select id="layer"></select>
+        </label>
+        <label class="field">標高データ
+          <select id="dem">
+            <option value="dem5a">5mメッシュ（無い所は10mで補完）</option>
+            <option value="dem10b">10mメッシュ</option>
+          </select>
+        </label>
+        <label class="field">テクスチャ解像度
+          <select id="texSize">
+            <option value="2048">標準（最大2048px）</option>
+            <option value="4096" selected>高（最大4096px）</option>
+          </select>
+        </label>
+      </section>
+
+      <button id="buildBtn" class="primary">3D表示</button>
+
+      <section>
+        <h2>高さ強調 <output id="exagOut">1.0</output> 倍</h2>
+        <input type="range" id="exag" min="1" max="5" step="0.1" value="1">
+      </section>
+
+      <section class="actions">
+        <button id="resetViewBtn">視点リセット</button>
+        <button id="shotBtn">画像保存</button>
+      </section>
+
+      <section>
+        <h2>情報</h2>
+        <dl id="info" class="info"></dl>
+      </section>
+    </aside>
+
+    <!-- 地図と3Dビュー -->
+    <main class="views">
+      <div class="view">
+        <div id="map"></div>
+      </div>
+      <div class="view">
+        <div id="viewer"></div>
+        <div id="hover" class="hover hidden"></div>
+        <div id="progress" class="progress hidden"></div>
+        <div id="placeholder" class="placeholder">領域を指定して「3D表示」を押してください</div>
+        <div class="attribution">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a></div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
