@@ -220,15 +220,28 @@ button.primary:hover { background: var(--accent-hover); }
 
 #mapView { flex: 0 0 50%; }
 
-/* 領域の頂点ハンドル（ドラッグでサイズ変更） */
+/* 領域の頂点ハンドル（ドラッグでサイズ変更）
+   要素自体は透明な広い掴み範囲で、見た目の10pxの四角は ::before で中央に描く */
 .leaflet-marker-icon.corner-handle {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-marker-icon.corner-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
   box-sizing: border-box;
   background: #fff;
   border: 2px solid #d0302b;
   border-radius: 1px;
 }
 
-.leaflet-marker-icon.corner-handle:hover { background: #d0302b; }
+.leaflet-marker-icon.corner-handle:hover::before { background: #d0302b; }
 .leaflet-marker-icon.corner-nwse { cursor: nwse-resize; }
 .leaflet-marker-icon.corner-nesw { cursor: nesw-resize; }
 

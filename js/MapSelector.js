@@ -13,6 +13,10 @@ const CORNERS = [
   { key: 'sw', lat: 'south', lon: 'west', cursor: 'nesw' },
 ];
 
+// 頂点ハンドルの掴める範囲(px)。見た目は CSS で10pxの四角を中央に描く
+// タッチ操作の端末では指で掴みやすいよう広めにする
+const HANDLE_HIT_SIZE = window.matchMedia('(pointer: coarse)').matches ? 36 : 24;
+
 export class MapSelector {
   /**
    * @param {string} elementId
@@ -30,6 +34,8 @@ export class MapSelector {
     // 左上はコントロールパネルが重なるので、ズームボタンは右上に置く
     this.map = L.map(elementId, { zoomControl: false }).setView([center.lat, center.lon], 14);
     L.control.zoom({ position: 'topright' }).addTo(this.map);
+    // 縮尺（メートル表示のみ）
+    L.control.scale({ position: 'bottomright', imperial: false, maxWidth: 150 }).addTo(this.map);
     // 境界のドラッグなどで地図の大きさが変わったら再描画
     new ResizeObserver(() => this.map.invalidateSize()).observe(this.map.getContainer());
     this.baseLayer = null;
@@ -133,7 +139,7 @@ export class MapSelector {
     }
   }
 
-  /** 10pxの頂点ハンドル：ドラッグすると中心はそのままでサイズを変更 */
+  /** 頂点ハンドル（見た目10px・掴める範囲は広め）：ドラッグすると中心はそのままでサイズを変更 */
   _createCornerHandle(corner) {
     const handle = L.marker([this.center.lat, this.center.lon], {
       draggable: true,
@@ -141,8 +147,8 @@ export class MapSelector {
       zIndexOffset: 1000,
       icon: L.divIcon({
         className: `corner-handle corner-${corner.cursor}`,
-        iconSize: [10, 10],
-        iconAnchor: [5, 5],
+        iconSize: [HANDLE_HIT_SIZE, HANDLE_HIT_SIZE],
+        iconAnchor: [HANDLE_HIT_SIZE / 2, HANDLE_HIT_SIZE / 2],
       }),
     }).addTo(this.map);
     handle.corner = corner;
