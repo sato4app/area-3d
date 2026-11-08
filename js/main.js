@@ -4,13 +4,17 @@ import { DEFAULT_CENTER, DEFAULT_SIZE, SIZE_LIMIT, MAP_LAYERS, GSI_SEARCH_URL } 
 import { MapSelector } from './MapSelector.js';
 import { TerrainViewer } from './TerrainViewer.js';
 import { buildTerrain } from './TerrainBuilder.js';
-import { setupFloatingPanel, setupSplitter, panelOverlapLeft } from './Layout.js';
+import { GeoJsonLayers } from './GeoJsonLayers.js';
+import { setupDraggable, setupCollapsible, setupSplitter, panelOverlapLeft, MAIN_PANEL_KEY } from './Layout.js';
 
 const $ = (id) => document.getElementById(id);
 
 // ---------- レイアウト ----------
 setupSplitter($('splitter'), $('views'), $('mapView'));
-setupFloatingPanel($('panel'), $('panelHeader'), $('panelToggle'), $('appBody'));
+// 「ファイル読み込み」と「Area3D」の2つのパネルはまとめて移動
+const clampPanels = setupDraggable($('panelStack'), [$('filePanelHeader'), $('panelHeader')], $('appBody'));
+setupCollapsible($('filePanel'), $('filePanelToggle'), 'area3d.filePanelCollapsed', clampPanels);
+setupCollapsible($('panel'), $('panelToggle'), MAIN_PANEL_KEY, clampPanels);
 
 const els = {
   lat: $('lat'),
@@ -35,6 +39,8 @@ const els = {
   searchForm: $('searchForm'),
   searchInput: $('searchInput'),
   searchResults: $('searchResults'),
+  geojsonInput: $('geojsonInput'),
+  fileList: $('fileList'),
 };
 
 // ---------- 初期化 ----------
@@ -182,6 +188,85 @@ els.shotBtn.addEventListener('click', () => {
   a.click();
 });
 
+// ---------- ファイル読み込み（GeoJSON を2D地図に表示） ----------
+const geojson = new GeoJsonLayers(mapSelector.map);
+
+els.geojsonInput.addEventListener('change', async () => {
+  const files = [...els.geojsonInput.files];
+  els.geojsonInput.value = ''; // 同じファイルをもう一度選べるように
+  const added = [];
+  const errors = [];
+  for (const file of files) {
+    try {
+      added.push(await geojson.addFile(file));
+    } catch (e) {
+      errors.push(`${file.name}：${e.message}`);
+    }
+  }
+  renderFileList();
+  if (added.length > 0) {
+    // 読み込んだファイル全体が見えるように地図を移動
+    const bounds = L.latLngBounds([]);
+    for (const item of added) {
+      const b = geojson.bounds(item.id);
+      if (b) bounds.extend(b);
+    }
+    fitMapToBounds(bounds);
+  }
+  if (errors.length > 0) alert(`読み込めなかったファイルがあります。\n${errors.join('\n')}`);
+});
+
+function renderFileList() {
+  els.fileList.innerHTML = '';
+  for (const item of geojson.items) {
+    const li = document.createElement('li');
+    li.classList.toggle('off', !item.visible);
+
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = item.visible;
+    check.title = '表示／非表示';
+    check.addEventListener('change', () => {
+      geojson.setVisible(item.id, check.checked);
+      li.classList.toggle('off', !check.checked);
+    });
+
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.background = item.color;
+
+    const name = document.createElement('span');
+    name.className = 'file-name';
+    name.title = `${item.name}（クリックでこの範囲へ移動）`;
+    const strong = document.createElement('strong');
+    strong.textContent = item.name;
+    const small = document.createElement('small');
+    small.textContent = countText(item.counts);
+    name.append(strong, small);
+    name.addEventListener('click', () => fitMapToBounds(geojson.bounds(item.id)));
+
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.textContent = '×';
+    del.title = '地図から削除';
+    del.addEventListener('click', () => {
+      geojson.remove(item.id);
+      renderFileList();
+    });
+
+    li.append(check, swatch, name, del);
+    els.fileList.appendChild(li);
+  }
+}
+
+function countText({ point, line, polygon }) {
+  const parts = [];
+  if (point) parts.push(`点 ${point}`);
+  if (line) parts.push(`線 ${line}`);
+  if (polygon) parts.push(`面 ${polygon}`);
+  return parts.join('・');
+}
+
 // ---------- 地名検索（国土地理院 住所検索API） ----------
 els.searchForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -246,5 +331,11 @@ function showInfo(t) {
 
 /** 領域全体が見えるように地図を合わせる（パネルに隠れる分だけ右へ寄せる） */
 function fitMapToArea() {
-  mapSelector.fitToArea(panelOverlapLeft($('panel'), $('map')));
+  mapSelector.fitToArea(panelOverlapLeft($('panelStack'), $('map')));
+}
+
+/** 指定範囲が見えるように地図を合わせる（点1つなどで寄りすぎないよう最大ズーム16） */
+function fitMapToBounds(bounds) {
+  if (!bounds || !bounds.isValid()) return;
+  mapSelector.fitToBounds(bounds, panelOverlapLeft($('panelStack'), $('map')), 16);
 }

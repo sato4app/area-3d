@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>area-3d - 地理院地図 3D表示</title>
+  <title>Area3D</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -34,10 +34,27 @@
       </div>
     </main>
 
-    <!-- コントロールパネル（地図の上に浮かぶ・見出しをドラッグで移動） -->
+    <!-- コントロールパネル（地図の上に浮かぶ・どちらかの見出しをドラッグでまとめて移動） -->
+    <div class="panel-stack" id="panelStack">
+    <aside class="panel" id="filePanel">
+      <div class="panel-header" id="filePanelHeader" title="ドラッグで移動">
+        <h2 class="panel-title">ファイル読み込み</h2>
+        <button id="filePanelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
+      </div>
+
+      <div class="panel-body">
+        <label class="file-btn">
+          GeoJSONファイルを選択
+          <input type="file" id="geojsonInput" accept=".geojson,.json,application/geo+json" multiple hidden>
+        </label>
+        <p class="hint">ファイル名をクリックするとその範囲へ移動します。</p>
+        <ul id="fileList" class="file-list"></ul>
+      </div>
+    </aside>
+
     <aside class="panel" id="panel">
       <div class="panel-header" id="panelHeader" title="ドラッグで移動">
-        <h1 class="panel-title">area-3d <span>地理院地図 3D表示</span></h1>
+        <h1 class="panel-title">Area3D <span>指定領域の3D表示</span></h1>
         <button id="panelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
       </div>
 
@@ -115,6 +132,7 @@
         </section>
       </div>
     </aside>
+    </div>
   </div>
 
   <script type="module" src="js/main.js"></script>

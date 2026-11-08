@@ -101,9 +101,15 @@ export class MapSelector {
 
   /** 領域全体が見えるように表示 */
   fitToArea(insetLeft = 0) {
-    this.map.fitBounds(this.rect.getBounds(), {
+    this.fitToBounds(this.rect.getBounds(), insetLeft);
+  }
+
+  /** 指定範囲が見えるように表示（insetLeft はパネルに隠れる左側の幅） */
+  fitToBounds(bounds, insetLeft = 0, maxZoom = 18) {
+    this.map.fitBounds(bounds, {
       paddingTopLeft: [30 + insetLeft, 30],
       paddingBottomRight: [30, 30],
+      maxZoom,
     });
   }
 

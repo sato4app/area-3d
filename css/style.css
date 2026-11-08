@@ -31,7 +31,8 @@ body {
 }
 
 /* ---------- コントロールパネル（フローティング） ---------- */
-.panel {
+/* 複数のパネルを縦に積んでまとめて動かす入れ物 */
+.panel-stack {
   position: absolute;
   top: 12px;
   left: 12px;
@@ -41,6 +42,15 @@ body {
   max-height: calc(100% - 24px);
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  pointer-events: none; /* パネル間のすき間では地図を操作できるように */
+}
+
+.panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -92,9 +102,12 @@ body {
 .panel.collapsed .panel-body { display: none; }
 .panel.collapsed .panel-header { border-bottom: none; border-radius: 8px; }
 
+/* ファイル読み込みパネルは縮めず、Area3D パネルの中身をスクロールさせる */
+#filePanel { flex-shrink: 0; }
+
 .panel section { margin-bottom: 14px; }
 
-.panel h2 {
+.panel-body h2 {
   margin: 0 0 6px;
   font-size: 13px;
   color: var(--accent);
@@ -203,6 +216,96 @@ button.primary:hover { background: var(--accent-hover); }
 
 .info dt { color: var(--muted); }
 .info dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* ---------- ファイル読み込み ---------- */
+.file-btn {
+  display: block;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  background: #fff;
+  cursor: pointer;
+}
+
+.file-btn:hover { background: #eef1ea; }
+
+.file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.file-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.file-list .swatch {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.file-list .file-name {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.file-list .file-name:hover strong { text-decoration: underline; }
+
+.file-list .file-name strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
+.file-list .file-name small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.file-list li.off .file-name { opacity: 0.5; }
+
+.file-list .icon-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+}
+
+/* GeoJSON の属性ポップアップ */
+.geojson-popup {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.geojson-popup th,
+.geojson-popup td {
+  padding: 2px 6px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-all;
+}
+
+.geojson-popup th {
+  color: var(--muted);
+  font-weight: normal;
+  white-space: nowrap;
+}
 
 /* ---------- 地図・3Dビュー ---------- */
 .views {
@@ -339,5 +442,4 @@ body.resizing.vertical { cursor: row-resize; }
     border-top: 1px solid var(--muted);
     border-bottom: 1px solid var(--muted);
   }
-  .panel { max-height: calc(100% - 24px); }
 }
