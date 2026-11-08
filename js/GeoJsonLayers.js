@@ -28,6 +28,7 @@ export class GeoJsonLayers {
     if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
       throw new Error('GeoJSONの形式ではありません。');
     }
+    data = connectRouteEnds(data);
 
     const color = COLORS[this._colorIndex++ % COLORS.length];
     const counts = { point: 0, line: 0, polygon: 0 };
@@ -82,6 +83,55 @@ export class GeoJsonLayers {
   _find(id) {
     return this.items.find((i) => i.id === id);
   }
+}
+
+/**
+ * ルートの LineString を「開始点 → LineString の各点 → 終了点」の順につないだ線にする。
+ * ルートデータでは coordinates に中間点だけが入り、開始点・終了点は properties に別に持っているため。
+ *   - 座標：startPointGPS / endPointGPS（[経度, 緯度, 標高]）
+ *   - 上記が無ければ：startPoint / endPoint の ID と一致する Point 地物（properties の id / pointId）
+ * 開始点・終了点が座標列の端と同じ位置なら重ねて追加しない。元のデータは書き換えない
+ */
+function connectRouteEnds(data) {
+  if (data.type !== 'FeatureCollection' && data.type !== 'Feature') return data;
+  const features = data.type === 'FeatureCollection' ? data.features || [] : [data];
+
+  // ID → Point の座標
+  const pointById = new Map();
+  for (const f of features) {
+    if (f?.geometry?.type !== 'Point') continue;
+    for (const key of ['id', 'pointId']) {
+      const id = f.properties?.[key];
+      if (id != null && id !== '' && !pointById.has(id)) pointById.set(id, f.geometry.coordinates);
+    }
+  }
+
+  const endCoord = (p, gpsKey, idKey) => {
+    if (isCoord(p[gpsKey])) return p[gpsKey];
+    const byId = pointById.get(p[idKey]);
+    return isCoord(byId) ? byId : null;
+  };
+
+  const fix = (f) => {
+    if (f?.geometry?.type !== 'LineString' || !f.properties) return f;
+    const start = endCoord(f.properties, 'startPointGPS', 'startPoint');
+    const end = endCoord(f.properties, 'endPointGPS', 'endPoint');
+    if (!start && !end) return f;
+    const coords = [...(f.geometry.coordinates || [])];
+    if (start && !samePos(start, coords[0])) coords.unshift(start);
+    if (end && !samePos(end, coords[coords.length - 1])) coords.push(end);
+    return { ...f, geometry: { ...f.geometry, coordinates: coords } };
+  };
+
+  return data.type === 'FeatureCollection' ? { ...data, features: features.map(fix) } : fix(data);
+}
+
+function isCoord(c) {
+  return Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]);
+}
+
+function samePos(a, b) {
+  return isCoord(b) && a[0] === b[0] && a[1] === b[1];
 }
 
 /**

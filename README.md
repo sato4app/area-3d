@@ -35,6 +35,7 @@ python -m http.server 8000
 
 - 「GeoJSONファイルを選択」で `.geojson` / `.json` を読み込み、2D地図と3Dビューに表示（複数ファイル可）。読み込むとその範囲へ地図を移動
 - LineString は線、Polygon は塗りつぶした領域（穴あき対応）、Point は丸印で表示。色はファイルごと。地理院地図の作図データの色指定（`_color` など）や simplestyle（`stroke` など）があればそれを優先
+- ルートの LineString は「開始点 → LineString の各点 → 終了点」をつないで表示。開始点・終了点は properties の `startPointGPS` / `endPointGPS`（無ければ `startPoint` / `endPoint` の ID と一致する Point 地物の `id` / `pointId`）から取る
 - 3Dビューでは地表に描き込むため、線・領域が地形の起伏に沿って表示される。3D表示の前後どちらで読み込んでもよい
 - 2D地図で地物をクリックすると属性をポップアップ表示
 - 一覧のチェックで表示／非表示（2D・3Dとも）、ファイル名クリックでその範囲へ移動、×で削除
