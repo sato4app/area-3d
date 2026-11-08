@@ -117,6 +117,7 @@ export async function buildTerrain(opts, onStatus) {
     demUsed,
     textureCanvas: tex.canvas,
     textureZoom: tex.z,
+    texSize: opts.texSize, // GeoJSON を地表に描く画像の大きさにも使う
     overlayCanvas: overlay?.canvas ?? null,
     overlayZoom: overlay?.z ?? null,
   };

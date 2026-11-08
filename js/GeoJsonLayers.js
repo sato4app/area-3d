@@ -7,7 +7,7 @@ export class GeoJsonLayers {
   /** @param {L.Map} map */
   constructor(map) {
     this.map = map;
-    /** @type {{id:number, name:string, color:string, layer:L.GeoJSON, visible:boolean, counts:{point:number, line:number, polygon:number}}[]} */
+    /** @type {{id:number, name:string, color:string, data:object, layer:L.GeoJSON, visible:boolean, counts:{point:number, line:number, polygon:number}}[]} */
     this.items = [];
     this._nextId = 1;
     this._colorIndex = 0;
@@ -52,7 +52,8 @@ export class GeoJsonLayers {
     }
 
     layer.addTo(this.map);
-    const item = { id: this._nextId++, name: file.name, color, layer, visible: true, counts };
+    // data は3D表示（地表に描く画像）の作成に使う
+    const item = { id: this._nextId++, name: file.name, color, data, layer, visible: true, counts };
     this.items.push(item);
     return item;
   }
@@ -83,8 +84,12 @@ export class GeoJsonLayers {
   }
 }
 
-/** 地物の表示スタイル。地理院地図の作図データ（_color など）や simplestyle（stroke など）の指定があれば優先 */
-function featureStyle(feature, color) {
+/**
+ * 地物の表示スタイル（2D地図・3D表示で共通）。
+ * 線は線、面は塗りつぶした領域として表示する。
+ * 地理院地図の作図データ（_color など）や simplestyle（stroke など）の指定があれば優先
+ */
+export function featureStyle(feature, color) {
   const p = feature.properties || {};
   const type = feature.geometry?.type;
   if (type === 'Point' || type === 'MultiPoint') {
@@ -101,7 +106,7 @@ function featureStyle(feature, color) {
     weight: num(p._weight ?? p['stroke-width'], 3),
     opacity: num(p._opacity ?? p['stroke-opacity'], 0.9),
     fillColor: p._fillColor || p.fill || lineColor,
-    fillOpacity: num(p._fillOpacity ?? p['fill-opacity'], 0.2),
+    fillOpacity: num(p._fillOpacity ?? p['fill-opacity'], 0.3),
   };
 }
 

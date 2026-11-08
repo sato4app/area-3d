@@ -5,6 +5,7 @@ import { MapSelector } from './MapSelector.js';
 import { TerrainViewer } from './TerrainViewer.js';
 import { buildTerrain } from './TerrainBuilder.js';
 import { GeoJsonLayers } from './GeoJsonLayers.js';
+import { drawGeoJsonCanvas } from './GeoJsonDrape.js';
 import { setupDraggable, setupCollapsible, setupSplitter, panelOverlapLeft, MAIN_PANEL_KEY } from './Layout.js';
 
 const $ = (id) => document.getElementById(id);
@@ -160,6 +161,7 @@ els.buildBtn.addEventListener('click', async () => {
     showProgress('3Dモデル作成中…');
     await nextFrame();
     viewer.setTerrain(terrain);
+    update3dGeoJson();
     showInfo(terrain);
   } catch (e) {
     console.error(e);
@@ -204,6 +206,7 @@ els.geojsonInput.addEventListener('change', async () => {
     }
   }
   renderFileList();
+  update3dGeoJson();
   if (added.length > 0) {
     // 読み込んだファイル全体が見えるように地図を移動
     const bounds = L.latLngBounds([]);
@@ -229,6 +232,7 @@ function renderFileList() {
     check.addEventListener('change', () => {
       geojson.setVisible(item.id, check.checked);
       li.classList.toggle('off', !check.checked);
+      update3dGeoJson();
     });
 
     const swatch = document.createElement('span');
@@ -252,11 +256,20 @@ function renderFileList() {
     del.addEventListener('click', () => {
       geojson.remove(item.id);
       renderFileList();
+      update3dGeoJson();
     });
 
     li.append(check, swatch, name, del);
     els.fileList.appendChild(li);
   }
+}
+
+/** 表示中の GeoJSON を3Dの地表に描き直す（3D表示前は何もしない） */
+function update3dGeoJson() {
+  const t = viewer.terrain;
+  if (!t) return;
+  const visible = geojson.items.filter((i) => i.visible);
+  viewer.setGeoJsonCanvas(drawGeoJsonCanvas(t.bounds, visible, t.texSize));
 }
 
 function countText({ point, line, polygon }) {

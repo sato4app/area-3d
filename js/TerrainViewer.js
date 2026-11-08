@@ -15,6 +15,7 @@ export class TerrainViewer {
     this.surface = null;
     this.overlay = null;
     this.overlayOpacity = 0.5;
+    this.geojsonLayer = null;
     this.exaggeration = 1;
     this.onHover = null;
 
@@ -136,6 +137,43 @@ export class TerrainViewer {
     this.camera.updateProjectionMatrix();
     this.controls.maxDistance = size * 6;
     this.resetView();
+  }
+
+  /**
+   * GeoJSON を描いた透明キャンバスを地表に貼る（null で消す）
+   * キャンバスは地表テクスチャと同じく領域ぴったりのメルカトル投影で描いたもの
+   */
+  setGeoJsonCanvas(canvas) {
+    if (this.geojsonLayer) {
+      this.group?.remove(this.geojsonLayer);
+      this.geojsonLayer.material.map?.dispose();
+      this.geojsonLayer.material.dispose();
+      this.geojsonLayer = null;
+    }
+    if (!canvas || !this.surface) return;
+
+    // 透明部分との境目が黒ずまないよう、色にアルファを掛けた状態で扱って合成する
+    const texture = this._makeTexture(canvas);
+    texture.premultiplyAlpha = true;
+    this.geojsonLayer = new THREE.Mesh(
+      this.surface.geometry,
+      new THREE.MeshStandardMaterial({
+        map: texture,
+        roughness: 1,
+        metalness: 0,
+        transparent: true,
+        blending: THREE.CustomBlending,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
+        depthWrite: false,
+        // 地表・重ね地図より手前に描く
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -8,
+      }),
+    );
+    this.geojsonLayer.renderOrder = 2;
+    this.group.add(this.geojsonLayer);
   }
 
   /** 側面の壁：外周の頂点から高さ0まで下ろした四角形を並べる */
@@ -261,5 +299,6 @@ export class TerrainViewer {
     this.group = null;
     this.surface = null;
     this.overlay = null;
+    this.geojsonLayer = null;
   }
 }
