@@ -7,6 +7,10 @@ import { buildTerrain } from './TerrainBuilder.js';
 import { GeoJsonLayers } from './GeoJsonLayers.js';
 import { drawGeoJsonCanvas } from './GeoJsonDrape.js';
 import { setupDraggable, setupCollapsible, setupViewSwitch, panelOverlapLeft, MAIN_PANEL_KEY } from './Layout.js';
+import { setupAbout } from './About.js';
+import { registerServiceWorker } from './pwa.js';
+
+registerServiceWorker();
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,6 +21,8 @@ const setViewMode = setupViewSwitch($('viewToggle'), $('views'));
 const clampPanels = setupDraggable($('panelStack'), [$('filePanelHeader'), $('panelHeader')], $('appBody'));
 setupCollapsible($('filePanel'), $('filePanelToggle'), 'area3d.filePanelCollapsed', clampPanels);
 setupCollapsible($('panel'), $('panelToggle'), MAIN_PANEL_KEY, clampPanels);
+// パネルの下の「このアプリについて」ボタン
+setupAbout($('aboutBtn'), $('aboutDialog'));
 
 const els = {
   lat: $('lat'),

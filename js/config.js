@@ -1,5 +1,8 @@
 // アプリ全体の設定値
 
+// QRコード作成ライブラリ（「このアプリについて」のQRコードタブを開いたときに読み込む）
+export const QR_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+
 // 初期表示位置（箕面大滝）
 export const DEFAULT_CENTER = { lat: 34.853667, lon: 135.472041 };
 export const DEFAULT_SIZE = { width: 500, height: 500 };

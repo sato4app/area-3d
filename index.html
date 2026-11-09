@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Area3D</title>
+  <meta name="description" content="地理院地図上で指定した領域を、標高データから3Dで表示します。">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2f6b3a">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Area3D">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -135,8 +144,110 @@
         <ul id="fileList" class="file-list"></ul>
       </div>
     </aside>
+
+    <button id="aboutBtn" class="about-btn" type="button">このアプリについて</button>
     </div>
   </div>
+
+  <!-- このアプリについて（使い方・FAQ・QRコード・バージョン） -->
+  <dialog id="aboutDialog" class="about-dialog" aria-labelledby="aboutTitle">
+    <div class="about-header">
+      <h2 id="aboutTitle">このアプリについて</h2>
+      <button id="aboutClose" class="icon-btn" type="button" title="閉じる" aria-label="閉じる">×</button>
+    </div>
+
+    <div class="about-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="usage" aria-selected="true">使い方</button>
+      <button type="button" role="tab" data-tab="faq" aria-selected="false">FAQ</button>
+      <button type="button" role="tab" data-tab="qr" aria-selected="false">QRコード</button>
+      <button type="button" role="tab" data-tab="version" aria-selected="false">バージョン</button>
+    </div>
+
+    <div class="about-body">
+      <section class="about-page" data-page="usage" role="tabpanel">
+        <p>地理院地図の上で指定した四角い領域を、標高データから立体（3D）にして表示します。</p>
+        <h3>基本の流れ</h3>
+        <ol>
+          <li><b>中心点を決める</b>：地図上の青いマーカーをドラッグします。地名検索や緯度・経度の入力でも指定できます。</li>
+          <li><b>領域の大きさを決める</b>：横・縦を m で入力します（100〜20000 m）。赤枠の四隅をドラッグしても変えられます。</li>
+          <li><b>地図と標高データを選ぶ</b>：ベース地図、重ねる地図（半透明）、標高データのメッシュを選びます。</li>
+          <li><b>「3D表示」を押す</b>：3Dビューに切り替わります。右上の［2D］／［3D］ボタンで地図と行き来できます。</li>
+        </ol>
+        <h3>3Dビューの操作</h3>
+        <ul>
+          <li>パソコン：左ドラッグで回転、右ドラッグで移動、ホイールで拡大・縮小</li>
+          <li>スマホ：1本指で回転、2本指で移動・拡大・縮小</li>
+          <li>「高さ強調」で起伏を最大5倍に強調できます。</li>
+          <li>「画像保存」で表示中の3DをPNG画像として保存します。</li>
+          <li>台座の周りの縮尺バーで、おおよその距離が分かります。</li>
+        </ul>
+        <h3>ファイル読み込み</h3>
+        <ul>
+          <li>GeoJSON（.geojson / .json）と GPX（.gpx）を読み込めます。複数まとめて選べます。</li>
+          <li>ルートや地点は2D地図と3Dの地表の両方に描かれます。</li>
+          <li>一覧のチェックで表示／非表示、ファイル名クリックでその場所へ移動、×で削除します。</li>
+        </ul>
+        <h3>パネル</h3>
+        <ul>
+          <li>パネルの見出しをドラッグすると、まとめて移動できます。</li>
+          <li>見出し右端の［−］で折りたためます。</li>
+        </ul>
+      </section>
+
+      <section class="about-page" data-page="faq" role="tabpanel" hidden>
+        <dl class="faq">
+          <dt>1mメッシュが選べません</dt>
+          <dd>1mメッシュは、領域が横・縦とも500m以下のときだけ選べます。領域を広げると自動で5mメッシュに切り替わります。</dd>
+
+          <dt>地図の種類を変えたのに3Dに反映されません</dt>
+          <dd>地図の種類や標高データを変えたときは、もう一度「3D表示」を押してください。「重ねる濃さ」と「高さ強調」はすぐに反映されます。</dd>
+
+          <dt>3D表示に時間がかかります／途中で止まります</dt>
+          <dd>領域が広いほど読み込むデータが増えます。領域を小さくするか、テクスチャ解像度を「標準」にしてみてください。</dd>
+
+          <dt>一部が平らになっています</dt>
+          <dd>水面など標高データの無い場所は、より粗いデータで補っています（1m → 5m → 10m）。それでも無い所は平らになります。</dd>
+
+          <dt>読み込んだルートが3Dに出ません</dt>
+          <dd>3Dには、指定した領域の中にある部分だけが描かれます。一覧のチェックが外れていないかも確認してください。</dd>
+
+          <dt>スマホの電池の減りが気になります</dt>
+          <dd>3Dは、視点を動かしている間だけ描画し、止まっている間や地図表示中は描画しません。描画の細かさも抑えています。</dd>
+
+          <dt>設定は保存されますか？</dt>
+          <dd>パネルの折りたたみ状態だけをブラウザに記憶します。読み込んだファイルや領域の指定は、ページを開き直すと消えます。</dd>
+
+          <dt>スマホのホーム画面に追加できますか？</dt>
+          <dd>できます。Android（Chrome）はメニューの「ホーム画面に追加」または「アプリをインストール」、iPhone（Safari）は共有ボタンの「ホーム画面に追加」を選んでください。アプリのように全画面で起動します。</dd>
+
+          <dt>電波の無い所でも使えますか？</dt>
+          <dd>一度開いたことがあれば、アプリの画面は電波が無くても起動します。ただし地図・標高データはその都度インターネットから取得するため、3D表示にはインターネット接続が必要です。</dd>
+
+          <dt>地図や標高データの出典は？</dt>
+          <dd>いずれも国土地理院の地理院タイルと住所検索APIを使っています。</dd>
+        </dl>
+      </section>
+
+      <section class="about-page" data-page="qr" role="tabpanel" hidden>
+        <p>スマホのカメラで読み取ると、このアプリを開けます。</p>
+        <div id="qrBox" class="qr-box"></div>
+        <p id="qrNote" class="hint" hidden>このページはパソコンの中のアドレスで開かれているため、ほかの端末からは開けません。公開先のページで表示してください。</p>
+        <div class="qr-url">
+          <input type="text" id="qrUrl" readonly aria-label="このアプリのURL">
+          <button type="button" id="qrCopy">コピー</button>
+        </div>
+      </section>
+
+      <section class="about-page" data-page="version" role="tabpanel" hidden>
+        <dl class="version-info">
+          <dt>アプリ名</dt><dd>Area3D（指定領域の3D表示）</dd>
+          <dt>バージョン</dt><dd id="appVersion"></dd>
+          <dt>データ出典</dt><dd><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院（地理院タイル）</a></dd>
+          <dt>ライブラリ</dt><dd>Leaflet 1.9.4、Three.js 0.160.0、qrcode-generator 1.4.4</dd>
+        </dl>
+      </section>
+    </div>
+  </dialog>
 
   <script type="module" src="js/main.js"></script>
 </body>
