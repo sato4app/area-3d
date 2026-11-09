@@ -1,8 +1,6 @@
-// 画面レイアウト：フローティングのコントロールパネルと、地図/3Dビューの境界（スプリッター）
+// 画面レイアウト：フローティングのコントロールパネルと、地図/3Dビューの切り替え
 
-const SPLIT_KEY = 'area3d.splitRatio';
 const PANEL_KEY = 'area3d.panelCollapsed';
-const MIN_PANE_PX = 120; // 地図・3Dビューの最小幅（高さ）
 
 // localStorage は使えない環境もあるので必ず try/catch で囲む
 function load(key) {
@@ -97,54 +95,20 @@ export function panelOverlapLeft(stack, mapElement) {
 }
 
 /**
- * 地図と3Dビューの境界をドラッグで移動
- * @param {HTMLElement} splitter
- * @param {HTMLElement} views 2つのペインを並べた親要素
- * @param {HTMLElement} firstPane 左（縦並び時は上）のペイン
+ * 地図と3Dビューの切り替え（同じ場所に重ねて置き、片方だけを表示）
+ * @param {HTMLButtonElement} button 切り替えボタン（地図表示中は「3D」、3D表示中は「2D」）
+ * @param {HTMLElement} views 2つのビューを重ねた親要素
+ * @returns {(mode: '2d' | '3d') => void} 表示を切り替える関数
  */
-export function setupSplitter(splitter, views, firstPane) {
-  const isVertical = () => getComputedStyle(views).flexDirection === 'column';
-
-  const applyRatio = (ratio) => {
-    firstPane.style.flex = `0 0 ${(ratio * 100).toFixed(2)}%`;
+export function setupViewSwitch(button, views) {
+  const setMode = (mode) => {
+    const is3d = mode === '3d';
+    views.classList.toggle('show-3d', is3d);
+    button.textContent = is3d ? '2D' : '3D';
+    button.title = is3d ? '地図表示に戻る' : '3D表示に切り替え';
+    button.classList.toggle('is-3d', is3d);
   };
-
-  const savedRatio = parseFloat(load(SPLIT_KEY));
-  applyRatio(Number.isFinite(savedRatio) ? savedRatio : 0.5);
-
-  let dragId = null;
-  splitter.addEventListener('pointerdown', (e) => {
-    dragId = e.pointerId;
-    splitter.setPointerCapture(e.pointerId);
-    splitter.classList.add('dragging');
-    document.body.classList.add('resizing');
-    document.body.classList.toggle('vertical', isVertical());
-    e.preventDefault();
-  });
-  splitter.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== dragId) return;
-    const rect = views.getBoundingClientRect();
-    const vertical = isVertical();
-    const total = vertical ? rect.height : rect.width;
-    const pos = vertical ? e.clientY - rect.top : e.clientX - rect.left;
-    const splitterSize = vertical ? splitter.offsetHeight : splitter.offsetWidth;
-    const min = Math.min(MIN_PANE_PX, total / 2);
-    const clamped = Math.min(Math.max(pos, min), total - min - splitterSize);
-    applyRatio(clamped / total);
-  });
-  const endDrag = (e) => {
-    if (e.pointerId !== dragId) return;
-    dragId = null;
-    splitter.classList.remove('dragging');
-    document.body.classList.remove('resizing', 'vertical');
-    save(SPLIT_KEY, String(parseFloat(firstPane.style.flexBasis) / 100));
-  };
-  splitter.addEventListener('pointerup', endDrag);
-  splitter.addEventListener('pointercancel', endDrag);
-
-  // ダブルクリックで半分に戻す
-  splitter.addEventListener('dblclick', () => {
-    applyRatio(0.5);
-    save(SPLIT_KEY, '0.5');
-  });
+  button.addEventListener('click', () => setMode(views.classList.contains('show-3d') ? '2d' : '3d'));
+  setMode('2d');
+  return setMode;
 }

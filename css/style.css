@@ -311,17 +311,42 @@ button.primary:hover { background: var(--accent-hover); }
 .views {
   position: absolute;
   inset: 0;
-  display: flex;
 }
 
+/* 地図と3Dビューは同じ場所に重ね、表示中でない方は隠す（大きさは保つ） */
 .view {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
 }
 
-#mapView { flex: 0 0 50%; }
+.views #viewerView,
+.views.show-3d #mapView { visibility: hidden; }
+.views.show-3d #viewerView { visibility: visible; }
+
+/* 地図／3D の切り替えボタン（右上） */
+.view-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1200; /* パネルを重ねても押せるように一番上 */
+  min-width: 56px;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 16px;
+  font-weight: bold;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.view-toggle:hover { background: #eef1ea; }
+.view-toggle.is-3d { background: var(--accent); color: #fff; }
+.view-toggle.is-3d:hover { background: var(--accent-hover); }
+
+/* 右上の地図コントロール（ズーム）は切り替えボタンの下へずらす */
+.leaflet-top.leaflet-right { top: 50px; }
 
 /* 領域の頂点ハンドル（ドラッグでサイズ変更）
    要素自体は透明な広い掴み範囲で、見た目の10pxの四角は ::before で中央に描く */
@@ -347,36 +372,6 @@ button.primary:hover { background: var(--accent-hover); }
 .leaflet-marker-icon.corner-handle:hover::before { background: #d0302b; }
 .leaflet-marker-icon.corner-nwse { cursor: nwse-resize; }
 .leaflet-marker-icon.corner-nesw { cursor: nesw-resize; }
-
-/* 地図と3Dビューの境界（ドラッグで移動） */
-.splitter {
-  position: relative;
-  flex: 0 0 8px;
-  background: var(--border);
-  cursor: col-resize;
-  touch-action: none;
-  z-index: 1;
-}
-
-.splitter::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 2px;
-  height: 36px;
-  transform: translate(-50%, -50%);
-  border-left: 1px solid var(--muted);
-  border-right: 1px solid var(--muted);
-}
-
-.splitter:hover,
-.splitter.dragging { background: var(--accent); }
-.splitter:hover::after,
-.splitter.dragging::after { border-color: #fff; }
-
-body.resizing { user-select: none; cursor: col-resize; }
-body.resizing.vertical { cursor: row-resize; }
 
 #map, #viewer {
   position: absolute;
@@ -429,17 +424,3 @@ body.resizing.vertical { cursor: row-resize; }
 }
 
 .hidden { display: none; }
-
-/* ---------- 狭い画面 ---------- */
-@media (max-width: 900px) {
-  /* 縦長の画面では地図（上）と3D（下）を上下に並べ、境界も上下に移動 */
-  .views { flex-direction: column; }
-  .splitter { cursor: row-resize; }
-  .splitter::after {
-    width: 36px;
-    height: 2px;
-    border: none;
-    border-top: 1px solid var(--muted);
-    border-bottom: 1px solid var(--muted);
-  }
-}

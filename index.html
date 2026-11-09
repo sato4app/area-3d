@@ -18,13 +18,11 @@
 </head>
 <body>
   <div class="app-body" id="appBody">
-    <!-- 地図と3Dビュー（境界はドラッグで移動可能） -->
+    <!-- 地図と3Dビュー（右上のボタンで切り替え） -->
     <main class="views" id="views">
       <div class="view" id="mapView">
         <div id="map"></div>
       </div>
-      <div class="splitter" id="splitter" role="separator" aria-orientation="vertical"
-           title="ドラッグで幅を調整（ダブルクリックで半分に戻す）"></div>
       <div class="view" id="viewerView">
         <div id="viewer"></div>
         <div id="hover" class="hover hidden"></div>
@@ -33,6 +31,9 @@
         <div class="attribution">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a></div>
       </div>
     </main>
+
+    <!-- 地図／3D の切り替えボタン -->
+    <button id="viewToggle" class="view-toggle" title="3D表示に切り替え">3D</button>
 
     <!-- コントロールパネル（地図の上に浮かぶ・どちらかの見出しをドラッグでまとめて移動） -->
     <div class="panel-stack" id="panelStack">

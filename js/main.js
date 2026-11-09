@@ -6,12 +6,13 @@ import { TerrainViewer } from './TerrainViewer.js';
 import { buildTerrain } from './TerrainBuilder.js';
 import { GeoJsonLayers } from './GeoJsonLayers.js';
 import { drawGeoJsonCanvas } from './GeoJsonDrape.js';
-import { setupDraggable, setupCollapsible, setupSplitter, panelOverlapLeft, MAIN_PANEL_KEY } from './Layout.js';
+import { setupDraggable, setupCollapsible, setupViewSwitch, panelOverlapLeft, MAIN_PANEL_KEY } from './Layout.js';
 
 const $ = (id) => document.getElementById(id);
 
 // ---------- レイアウト ----------
-setupSplitter($('splitter'), $('views'), $('mapView'));
+// 地図と3Dビューは右上のボタンで切り替え
+const setViewMode = setupViewSwitch($('viewToggle'), $('views'));
 // 「ファイル読み込み」と「Area3D」の2つのパネルはまとめて移動
 const clampPanels = setupDraggable($('panelStack'), [$('filePanelHeader'), $('panelHeader')], $('appBody'));
 setupCollapsible($('filePanel'), $('filePanelToggle'), 'area3d.filePanelCollapsed', clampPanels);
@@ -144,6 +145,7 @@ els.buildBtn.addEventListener('click', async () => {
 
   els.buildBtn.disabled = true;
   els.placeholder.classList.add('hidden');
+  setViewMode('3d'); // 作成の進み具合が見えるように先に3Dへ切り替える
   showProgress('準備中…');
   try {
     const terrain = await buildTerrain(
