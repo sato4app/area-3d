@@ -6,7 +6,7 @@
 // アプリのバージョン（「このアプリについて」にもこの値を表示する。定義はここだけ）
 // 命名規則："yyyy-mm-dd.n"（yyyy-mm-dd は更新日、n はその日の1から始まる連番）
 // アプリ本体を変えたときは必ず更新する（古いキャッシュが消え、新しいファイルが使われる）
-const CACHE_VERSION = '2026-11-09.1';
+const CACHE_VERSION = '2026-11-09.3';
 const APP_CACHE = `area3d-app-${CACHE_VERSION}`;
 const LIB_CACHE = 'area3d-lib-v1';
 
@@ -70,10 +70,18 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// ページからの問い合わせに、このサービスワーカーのバージョンを返す（更新の確認に使う）
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'GET_VERSION') event.ports[0]?.postMessage(CACHE_VERSION);
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+
+  // 更新の確認（最新版の取得）はキャッシュを使わず、必ずサーバーに問い合わせる
+  if (url.origin === self.location.origin && url.searchParams.has('latest')) return;
 
   if (url.origin === self.location.origin) {
     event.respondWith(networkFirst(req));
@@ -87,7 +95,8 @@ self.addEventListener('fetch', (event) => {
 async function networkFirst(req) {
   const cache = await caches.open(APP_CACHE);
   try {
-    const res = await fetch(req);
+    // ブラウザの一時保存（HTTPキャッシュ）に古いファイルが残っていても使わず、サーバーに確かめる
+    const res = await fetch(req, { cache: 'no-cache' });
     if (res.ok) cache.put(req, res.clone());
     return res;
   } catch (e) {

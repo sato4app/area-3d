@@ -2,6 +2,7 @@
 // （パネル自体の折りたたみ・移動は Layout.js で、ほかのパネルと同じように行う）
 
 import { QR_LIB_URL } from './config.js';
+import { getCurrentVersion, fetchLatestVersion, canUpdate, applyUpdate } from './pwa.js';
 
 /**
  * @param {HTMLElement} root パネル
@@ -9,7 +10,11 @@ import { QR_LIB_URL } from './config.js';
 export function setupAbout(root) {
   const $ = (sel) => root.querySelector(sel);
 
-  showVersion($('#appVersion'));
+  // バージョン情報は開くたびに、更新版が無いか確認する
+  $('.about-item[data-item="version"]').addEventListener('toggle', (e) => {
+    if (e.currentTarget.open) checkVersion(root);
+  });
+  $('#updateBtn').addEventListener('click', () => startUpdate(root));
 
   // QRコードは開いたときに作る
   $('.about-item[data-item="qr"]').addEventListener('toggle', (e) => {
@@ -29,20 +34,74 @@ export function setupAbout(root) {
   });
 }
 
+let checking = false;
+let confirmedVersion = null; // 確認を出した最新版（同じ版について何度も確認を出さないため）
+
 /**
- * バージョンを表示する。バージョンは service-worker.js の CACHE_VERSION だけで定義しているので、
- * そのファイルを読んで取り出す（"yyyy-mm-dd.n" 形式）
+ * いまのバージョンを表示し、サーバーに新しい版が無いか確認する。
+ * 新しい版があれば、更新するかどうかの確認を出す
+ * （バージョンは service-worker.js の CACHE_VERSION だけで定義。"yyyy-mm-dd.n" 形式）
  */
-async function showVersion(el) {
-  el.textContent = '確認中…';
+async function checkVersion(root) {
+  if (checking) return;
+  checking = true;
+  const versionEl = root.querySelector('#appVersion');
+  const statusEl = root.querySelector('#updateStatus');
+  const button = root.querySelector('#updateBtn');
+  versionEl.textContent = '確認中…';
+  statusEl.textContent = '更新版を確認中…';
+  button.hidden = true;
+
   try {
-    const text = await (await fetch('./service-worker.js', { cache: 'no-cache' })).text();
-    const m = text.match(/CACHE_VERSION\s*=\s*['"]([^'"]+)['"]/);
-    if (!m) throw new Error('CACHE_VERSION が見つかりません');
-    el.textContent = m[1];
+    const current = await getCurrentVersion();
+    versionEl.textContent = current ?? '不明';
+
+    if (!canUpdate()) {
+      statusEl.textContent = 'この開き方では更新の確認はできません。';
+      return;
+    }
+
+    let latest;
+    try {
+      latest = await fetchLatestVersion();
+    } catch (e) {
+      console.warn('更新版を確認できませんでした', e);
+      statusEl.textContent = '確認できませんでした（インターネット接続を確認してください）。';
+      return;
+    }
+
+    // いまのバージョンが分からない（null）ときは、バージョンを答えられない古い版で動いているので更新を勧める
+    if (current === latest) {
+      statusEl.textContent = '最新版です。';
+      return;
+    }
+    statusEl.textContent = `新しいバージョン ${latest} があります。`;
+    button.hidden = false;
+
+    if (confirmedVersion !== latest) {
+      confirmedVersion = latest;
+      const now = current ? `いまのバージョン：${current}\n` : '';
+      if (confirm(`新しいバージョンがあります。\n\n${now}新しいバージョン：${latest}\n\n更新しますか？（ページを読み込み直します）`)) {
+        startUpdate(root);
+      }
+    }
+  } finally {
+    checking = false;
+  }
+}
+
+/** 最新版に更新してページを読み込み直す */
+async function startUpdate(root) {
+  const statusEl = root.querySelector('#updateStatus');
+  const button = root.querySelector('#updateBtn');
+  button.disabled = true;
+  statusEl.textContent = '更新中…';
+  try {
+    await applyUpdate();
   } catch (e) {
-    console.warn('バージョンを読み取れませんでした', e);
-    el.textContent = '不明';
+    console.warn('更新できませんでした', e);
+    statusEl.textContent = '更新できませんでした（インターネット接続を確認してください）。';
+    button.disabled = false;
   }
 }
 

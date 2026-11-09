@@ -405,6 +405,18 @@ button.primary:hover { background: var(--accent-hover); }
 .version-info dt { color: var(--muted); }
 .version-info dd { margin: 0; }
 
+.update-btn {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 12px;
+  font-weight: bold;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+}
+
+.update-btn:hover { background: var(--accent-hover); }
+
 /* GeoJSON の属性ポップアップ */
 .geojson-popup {
   border-collapse: collapse;
