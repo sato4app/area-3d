@@ -1,32 +1,19 @@
-// 「このアプリについて」：使い方・よくある質問・バージョン情報・QRコードを縦に並べ、見出しのタップで開閉するダイアログ
+// 「このアプリについて」パネル：使い方・よくある質問・バージョン情報・QRコードを縦に並べ、見出しのタップで開閉
+// （パネル自体の折りたたみ・移動は Layout.js で、ほかのパネルと同じように行う）
 
 import { QR_LIB_URL } from './config.js';
 
 /**
- * @param {HTMLButtonElement} openButton 開くボタン
- * @param {HTMLDialogElement} dialog ダイアログ
+ * @param {HTMLElement} root パネル
  */
-export function setupAbout(openButton, dialog) {
-  const $ = (sel) => dialog.querySelector(sel);
-  const items = [...dialog.querySelectorAll('.about-item')];
+export function setupAbout(root) {
+  const $ = (sel) => root.querySelector(sel);
 
   showVersion($('#appVersion'));
 
   // QRコードは開いたときに作る
   $('.about-item[data-item="qr"]').addEventListener('toggle', (e) => {
-    if (e.currentTarget.open) showQr(dialog);
-  });
-
-  openButton.addEventListener('click', () => {
-    // 開くたびに、すべての項目を閉じた状態から始める
-    for (const item of items) item.open = false;
-    $('.about-body').scrollTop = 0;
-    dialog.showModal();
-  });
-  $('#aboutClose').addEventListener('click', () => dialog.close());
-  // ダイアログの外側（背景）をクリックしても閉じる
-  dialog.addEventListener('click', (e) => {
-    if (e.target === dialog) dialog.close();
+    if (e.currentTarget.open) showQr(root);
   });
 
   $('#qrCopy').addEventListener('click', async () => {
@@ -71,10 +58,10 @@ function isLocalAddress() {
 
 let qrDrawn = false;
 
-async function showQr(dialog) {
-  const box = dialog.querySelector('#qrBox');
-  dialog.querySelector('#qrUrl').value = appUrl();
-  dialog.querySelector('#qrNote').hidden = !isLocalAddress();
+async function showQr(root) {
+  const box = root.querySelector('#qrBox');
+  root.querySelector('#qrUrl').value = appUrl();
+  root.querySelector('#qrNote').hidden = !isLocalAddress();
   if (qrDrawn) return;
 
   box.textContent = 'QRコードを作成中…';

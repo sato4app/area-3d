@@ -17,12 +17,17 @@ const $ = (id) => document.getElementById(id);
 // ---------- レイアウト ----------
 // 地図と3Dビューは右上のボタンで切り替え
 const setViewMode = setupViewSwitch($('viewToggle'), $('views'));
-// 「ファイル読み込み」と「Area3D」の2つのパネルはまとめて移動
-const clampPanels = setupDraggable($('panelStack'), [$('filePanelHeader'), $('panelHeader')], $('appBody'));
-setupCollapsible($('filePanel'), $('filePanelToggle'), 'area3d.filePanelCollapsed', clampPanels);
+// 「指定領域の3D表示」「ファイル読み込み」「このアプリについて」の3つのパネルはまとめて移動（上から順）
+const clampPanels = setupDraggable(
+  $('panelStack'),
+  [$('panelHeader'), $('filePanelHeader'), $('aboutPanelHeader')],
+  $('appBody'),
+);
 setupCollapsible($('panel'), $('panelToggle'), MAIN_PANEL_KEY, clampPanels);
-// パネルの下の「このアプリについて」ボタン
-setupAbout($('aboutBtn'), $('aboutDialog'));
+setupCollapsible($('filePanel'), $('filePanelToggle'), 'area3d.filePanelCollapsed', clampPanels);
+// 「このアプリについて」は最初は閉じておく
+setupCollapsible($('aboutPanel'), $('aboutPanelToggle'), 'area3d.aboutPanelCollapsed', clampPanels, true);
+setupAbout($('aboutPanel'));
 
 const els = {
   lat: $('lat'),

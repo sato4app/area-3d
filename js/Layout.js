@@ -61,8 +61,9 @@ export function setupDraggable(stack, headers, container) {
  * @param {HTMLButtonElement} toggle 折りたたみボタン
  * @param {string} storageKey 状態を記憶するキー
  * @param {() => void} [onChange] 開閉したときに呼ぶ
+ * @param {boolean} [defaultCollapsed] 記憶が無いとき閉じておくか（省略時は狭い画面のときだけ閉じる）
  */
-export function setupCollapsible(panel, toggle, storageKey, onChange) {
+export function setupCollapsible(panel, toggle, storageKey, onChange, defaultCollapsed) {
   const setCollapsed = (collapsed) => {
     panel.classList.toggle('collapsed', collapsed);
     toggle.textContent = collapsed ? '+' : '−';
@@ -73,9 +74,9 @@ export function setupCollapsible(panel, toggle, storageKey, onChange) {
   };
   toggle.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
 
-  // 狭い画面では最初は折りたたんでおく
+  // 記憶が無ければ、指定どおり（指定が無ければ狭い画面のときだけ）折りたたんでおく
   const saved = load(storageKey);
-  setCollapsed(saved !== null ? saved === '1' : window.innerWidth < 600);
+  setCollapsed(saved !== null ? saved === '1' : (defaultCollapsed ?? window.innerWidth < 600));
 }
 
 /** Area3D パネルの折りたたみ状態を記憶するキー */

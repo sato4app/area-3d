@@ -145,19 +145,14 @@
       </div>
     </aside>
 
-    <button id="aboutBtn" class="about-btn" type="button">このアプリについて</button>
-    </div>
-  </div>
+    <!-- このアプリについて：使い方・よくある質問・バージョン情報・QRコードを縦に並べ、見出しをタップで開閉 -->
+    <aside class="panel" id="aboutPanel">
+      <div class="panel-header" id="aboutPanelHeader" title="ドラッグで移動">
+        <h2 class="panel-title">このアプリについて</h2>
+        <button id="aboutPanelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
+      </div>
 
-  <!-- このアプリについて（使い方・FAQ・QRコード・バージョン） -->
-  <dialog id="aboutDialog" class="about-dialog" aria-labelledby="aboutTitle">
-    <div class="about-header">
-      <h2 id="aboutTitle">このアプリについて</h2>
-      <button id="aboutClose" class="icon-btn" type="button" title="閉じる" aria-label="閉じる">×</button>
-    </div>
-
-    <!-- 項目を縦に並べ、見出しをタップで開閉（最初はすべて閉じた状態） -->
-    <div class="about-body">
+      <div class="panel-body about-body">
       <details class="about-item" data-item="usage">
         <summary>使い方</summary>
         <div class="about-content">
@@ -252,8 +247,10 @@
         </div>
         </div>
       </details>
+      </div>
+    </aside>
     </div>
-  </dialog>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>
