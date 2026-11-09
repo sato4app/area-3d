@@ -85,28 +85,6 @@ viewer.onHover = (h) => {
   els.hover.classList.remove('hidden');
 };
 
-// 3Dビューの縮尺バー（画面下辺付近の地表での目安。2D地図と同じく最大150px）
-const SCALE_MAX_PX = 150;
-viewer.onScale = (mpp) => {
-  const box = $('scale3d');
-  if (!mpp || !Number.isFinite(mpp)) {
-    box.classList.add('hidden');
-    return;
-  }
-  const meters = niceLength(mpp * SCALE_MAX_PX);
-  const bar = $('scale3dBar');
-  bar.style.width = `${Math.round(meters / mpp)}px`;
-  bar.textContent = meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
-  box.classList.remove('hidden');
-};
-
-/** max 以下で一番大きい「1・2・3・5 × 10のべき乗」の長さ(m) */
-function niceLength(max) {
-  const pow = 10 ** Math.floor(Math.log10(max));
-  const d = max / pow;
-  return Number((pow * (d >= 5 ? 5 : d >= 3 ? 3 : d >= 2 ? 2 : 1)).toPrecision(1)); // 0.30000000000000004 などを防ぐ
-}
-
 // ---------- 入力値 ----------
 function readCenter() {
   const lat = parseFloat(els.lat.value);

@@ -414,28 +414,6 @@ button.primary:hover { background: var(--accent-hover); }
   font-variant-numeric: tabular-nums;
 }
 
-/* 3Dビューの縮尺バー（下辺の中央。2D地図の縮尺表示と同じ見た目） */
-.scale3d {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.scale3d-bar {
-  box-sizing: border-box;
-  padding: 2px 5px 1px;
-  border: 2px solid #777;
-  border-top: none;
-  background: rgba(255, 255, 255, 0.8);
-  color: #333;
-  font-size: 11px;
-  line-height: 1.1;
-  white-space: nowrap;
-  text-align: left;
-}
-
 .attribution {
   position: absolute;
   right: 4px;

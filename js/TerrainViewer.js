@@ -6,8 +6,6 @@ import { metersPerDegLat, metersPerDegLon } from './geo.js';
 
 const WALL_COLOR = 0x8a6d4e;
 const BOTTOM_COLOR = 0x5e4a35;
-// 縮尺を測る高さ：画面の下辺から何px上か（縮尺バーの位置に合わせる）
-const SCALE_BAR_OFFSET_PX = 15;
 
 export class TerrainViewer {
   constructor(container) {
@@ -20,9 +18,7 @@ export class TerrainViewer {
     this.geojsonLayer = null;
     this.exaggeration = 1;
     this.onHover = null;
-    /** 縮尺が変わったときに呼ぶ（引数：画面下辺付近の地表での 1px あたりの m。求められなければ null） */
-    this.onScale = null;
-    this._scaleDirty = true;
+    this.scaleBar = null; // 台座の南側の下辺に置く縮尺バー
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -45,16 +41,9 @@ export class TerrainViewer {
     new ResizeObserver(() => this._resize()).observe(container);
     this._resize();
 
-    // 視点が動いたら縮尺を計算し直す（描画のついでに1フレーム1回だけ）
-    this.controls.addEventListener('change', () => { this._scaleDirty = true; });
-
     const loop = () => {
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
-      if (this._scaleDirty) {
-        this._scaleDirty = false;
-        this.onScale?.(this._metersPerPixelAtBottom());
-      }
       requestAnimationFrame(loop);
     };
     loop();
@@ -143,13 +132,16 @@ export class TerrainViewer {
     this.group.scale.y = this.exaggeration;
     this.scene.add(this.group);
 
+    // 縮尺バーは高さ強調の影響を受けないよう、地形とは別に置く（台座の底は高さ強調しても y=0 のまま）
+    this.scaleBar = this._buildScaleBar(W, H);
+    this.scene.add(this.scaleBar);
+
     const size = Math.max(W, H);
     this.camera.near = size / 2000;
     this.camera.far = size * 20;
     this.camera.updateProjectionMatrix();
     this.controls.maxDistance = size * 6;
     this.resetView();
-    this._scaleDirty = true;
   }
 
   /**
@@ -233,63 +225,76 @@ export class TerrainViewer {
   setExaggeration(value) {
     this.exaggeration = value;
     if (this.group) this.group.scale.y = value;
-    this._scaleDirty = true;
   }
 
   /**
-   * 画面下辺付近（縮尺バーを置く高さ）の地表での 1px あたりの距離(m)
-   * 透視投影なので場所ごとに縮尺が違う。下辺の中央から左右に少し離れた2点が
-   * 地表のどこに当たるかを求め、その距離から計算する
-   * 大きなメッシュとの交差判定は重いので、地表の高さは標高グリッドから引き、水平面との交点で近似する
+   * 縮尺バー：台座の南側の下辺に沿って、西の角から東へ置く
+   * 図形と一緒に回転・拡大縮小するので、どの向きから見ても図形に対して正しい長さになる
+   * 白黒交互の区切りと、両端に「0」「○○ m」の文字を付ける
    */
-  _metersPerPixelAtBottom() {
-    if (!this.terrain) return null;
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
-    if (!w || !h) return null;
-    const y = h - SCALE_BAR_OFFSET_PX;
-    const half = Math.min(60, w / 4);
+  _buildScaleBar(W, H) {
+    const size = Math.max(W, H);
+    const length = niceLength(W * 0.5);
+    // 区切りの数（100 → 4区切り(25m)、300 → 3区切り(100m)、500 → 5区切り(100m) など）
+    const lead = Math.round(length / 10 ** Math.floor(Math.log10(length)));
+    const segs = { 1: 4, 2: 4, 3: 3, 5: 5 }[lead] ?? 4;
 
-    const ray = (px) => {
-      const ndc = new THREE.Vector2((px / w) * 2 - 1, -(y / h) * 2 + 1);
-      const rc = new THREE.Raycaster();
-      rc.setFromCamera(ndc, this.camera);
-      return rc.ray;
-    };
-    // 水平面 y = planeY との交点（地平線より上を向いていれば null）
-    const hitPlane = (r, planeY) => {
-      if (r.direction.y >= -1e-6) return null;
-      const t = (planeY - r.origin.y) / r.direction.y;
-      return t > 0 ? r.origin.clone().addScaledVector(r.direction, t) : null;
-    };
+    const depth = size * 0.012; // バーの幅（南北方向）
+    const thick = size * 0.004; // バーの厚み（上下方向）
+    const border = size * 0.002;
+    const x0 = -W / 2;
+    const z = H / 2 + size * 0.015 + depth / 2; // 台座の南の壁から少し離す
 
-    // 中央の光線で地表の高さを求める（交点の標高で面を置き直すのを数回繰り返す）
-    const center = ray(w / 2);
-    let planeY = this.controls.target.y;
-    for (let n = 0; n < 4; n++) {
-      const p = hitPlane(center, planeY);
-      if (!p) return null;
-      const gy = this._surfaceY(p.x, p.z);
-      if (gy === null) break; // 領域の外を見ているときは直前の高さのまま
-      planeY = gy;
+    const bar = new THREE.Group();
+    // 縁取り（黒）
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(length + border * 2, thick * 0.9, depth + border * 2),
+      new THREE.MeshBasicMaterial({ color: 0x222222 }),
+    );
+    frame.position.set(x0 + length / 2, (thick * 0.9) / 2, z);
+    bar.add(frame);
+    // 白黒交互の区切り（光の当たり方で色が変わらないよう陰影なしの素材）
+    const segLen = length / segs;
+    for (let k = 0; k < segs; k++) {
+      const seg = new THREE.Mesh(
+        new THREE.BoxGeometry(segLen, thick, depth),
+        new THREE.MeshBasicMaterial({ color: k % 2 === 0 ? 0x222222 : 0xffffff }),
+      );
+      seg.position.set(x0 + segLen * (k + 0.5), thick / 2, z);
+      bar.add(seg);
     }
-    const a = hitPlane(ray(w / 2 - half), planeY);
-    const b = hitPlane(ray(w / 2 + half), planeY);
-    if (!a || !b) return null;
-    // 水平方向の距離（m）。高さ強調は縦方向だけなので水平距離には影響しない
-    const d = Math.hypot(a.x - b.x, a.z - b.z);
-    return d / (half * 2);
+    // 両端の文字（常にカメラの方を向く）
+    const labelH = size * 0.035;
+    const labelZ = z + depth / 2 + labelH * 0.6;
+    bar.add(this._makeLabel('0', x0, labelZ, labelH));
+    bar.add(this._makeLabel(length >= 1000 ? `${length / 1000} km` : `${length} m`, x0 + length, labelZ, labelH));
+    return bar;
   }
 
-  /** 地表の高さ（表示上の y 座標）。領域の外なら null */
-  _surfaceY(x, z) {
-    const { width: W, height: H, segX, segY, heights } = this.terrain;
-    const fi = ((x + W / 2) / W) * segX;
-    const fj = ((z + H / 2) / H) * segY;
-    if (fi < 0 || fj < 0 || fi > segX || fj > segY) return null;
-    const i = Math.round(fi);
-    const j = Math.round(fj);
-    return (heights[j * (segX + 1) + i] - this.baseH) * this.exaggeration;
+  /** 文字のスプライト（白い縁取り付きの黒文字） */
+  _makeLabel(text, x, z, height) {
+    const font = 'bold 48px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.font = font;
+    canvas.width = Math.ceil(ctx.measureText(text).width) + 24;
+    canvas.height = 64;
+    ctx.font = font; // 大きさを変えると設定が消えるので設定し直す
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = '#fff';
+    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = '#222';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+    sprite.scale.set((height * canvas.width) / canvas.height, height, 1);
+    sprite.position.set(x, 0, z);
+    return sprite;
   }
 
   resetView() {
@@ -355,10 +360,19 @@ export class TerrainViewer {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this._scaleDirty = true;
   }
 
   _disposeTerrain() {
+    if (this.scaleBar) {
+      this.scene.remove(this.scaleBar);
+      this.scaleBar.traverse((obj) => {
+        if (!obj.isMesh && !obj.isSprite) return;
+        if (obj.isMesh) obj.geometry.dispose(); // スプライトの形状は全スプライト共通なので解放しない
+        obj.material.map?.dispose();
+        obj.material.dispose();
+      });
+      this.scaleBar = null;
+    }
     if (!this.group) return;
     this.scene.remove(this.group);
     this.group.traverse((obj) => {
@@ -372,4 +386,11 @@ export class TerrainViewer {
     this.overlay = null;
     this.geojsonLayer = null;
   }
+}
+
+/** max 以下で一番大きい「1・2・3・5 × 10のべき乗」の長さ(m) */
+function niceLength(max) {
+  const pow = 10 ** Math.floor(Math.log10(max));
+  const d = max / pow;
+  return Number((pow * (d >= 5 ? 5 : d >= 3 ? 3 : d >= 2 ? 2 : 1)).toPrecision(1)); // 0.30000000000000004 などを防ぐ
 }
