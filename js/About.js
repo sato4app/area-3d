@@ -1,4 +1,4 @@
-// 「このアプリについて」：使い方・FAQ・QRコード・バージョンをタブで切り替えて表示するダイアログ
+// 「このアプリについて」：使い方・よくある質問・バージョン情報・QRコードを縦に並べ、見出しのタップで開閉するダイアログ
 
 import { QR_LIB_URL } from './config.js';
 
@@ -8,20 +8,21 @@ import { QR_LIB_URL } from './config.js';
  */
 export function setupAbout(openButton, dialog) {
   const $ = (sel) => dialog.querySelector(sel);
-  const tabs = [...dialog.querySelectorAll('[role="tab"]')];
-  const pages = [...dialog.querySelectorAll('.about-page')];
+  const items = [...dialog.querySelectorAll('.about-item')];
 
   showVersion($('#appVersion'));
 
-  const selectTab = (name) => {
-    for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.tab === name));
-    for (const p of pages) p.hidden = p.dataset.page !== name;
-    $('.about-body').scrollTop = 0;
-    if (name === 'qr') showQr(dialog);
-  };
-  for (const t of tabs) t.addEventListener('click', () => selectTab(t.dataset.tab));
+  // QRコードは開いたときに作る
+  $('.about-item[data-item="qr"]').addEventListener('toggle', (e) => {
+    if (e.currentTarget.open) showQr(dialog);
+  });
 
-  openButton.addEventListener('click', () => dialog.showModal());
+  openButton.addEventListener('click', () => {
+    // 開くたびに、すべての項目を閉じた状態から始める
+    for (const item of items) item.open = false;
+    $('.about-body').scrollTop = 0;
+    dialog.showModal();
+  });
   $('#aboutClose').addEventListener('click', () => dialog.close());
   // ダイアログの外側（背景）をクリックしても閉じる
   dialog.addEventListener('click', (e) => {

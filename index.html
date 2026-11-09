@@ -156,15 +156,11 @@
       <button id="aboutClose" class="icon-btn" type="button" title="閉じる" aria-label="閉じる">×</button>
     </div>
 
-    <div class="about-tabs" role="tablist">
-      <button type="button" role="tab" data-tab="usage" aria-selected="true">使い方</button>
-      <button type="button" role="tab" data-tab="faq" aria-selected="false">FAQ</button>
-      <button type="button" role="tab" data-tab="qr" aria-selected="false">QRコード</button>
-      <button type="button" role="tab" data-tab="version" aria-selected="false">バージョン</button>
-    </div>
-
+    <!-- 項目を縦に並べ、見出しをタップで開閉（最初はすべて閉じた状態） -->
     <div class="about-body">
-      <section class="about-page" data-page="usage" role="tabpanel">
+      <details class="about-item" data-item="usage">
+        <summary>使い方</summary>
+        <div class="about-content">
         <p>地理院地図の上で指定した四角い領域を、標高データから立体（3D）にして表示します。</p>
         <h3>基本の流れ</h3>
         <ol>
@@ -192,9 +188,12 @@
           <li>パネルの見出しをドラッグすると、まとめて移動できます。</li>
           <li>見出し右端の［−］で折りたためます。</li>
         </ul>
-      </section>
+        </div>
+      </details>
 
-      <section class="about-page" data-page="faq" role="tabpanel" hidden>
+      <details class="about-item" data-item="faq">
+        <summary>よくある質問</summary>
+        <div class="about-content">
         <dl class="faq">
           <dt>1mメッシュが選べません</dt>
           <dd>1mメッシュは、領域が横・縦とも500m以下のときだけ選べます。領域を広げると自動で5mメッシュに切り替わります。</dd>
@@ -226,9 +225,24 @@
           <dt>地図や標高データの出典は？</dt>
           <dd>いずれも国土地理院の地理院タイルと住所検索APIを使っています。</dd>
         </dl>
-      </section>
+        </div>
+      </details>
 
-      <section class="about-page" data-page="qr" role="tabpanel" hidden>
+      <details class="about-item" data-item="version">
+        <summary>バージョン情報</summary>
+        <div class="about-content">
+        <dl class="version-info">
+          <dt>アプリ名</dt><dd>Area3D（指定領域の3D表示）</dd>
+          <dt>バージョン</dt><dd id="appVersion"></dd>
+          <dt>データ出典</dt><dd><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院（地理院タイル）</a></dd>
+          <dt>ライブラリ</dt><dd>Leaflet 1.9.4、Three.js 0.160.0、qrcode-generator 1.4.4</dd>
+        </dl>
+        </div>
+      </details>
+
+      <details class="about-item" data-item="qr">
+        <summary>QRコード</summary>
+        <div class="about-content">
         <p>スマホのカメラで読み取ると、このアプリを開けます。</p>
         <div id="qrBox" class="qr-box"></div>
         <p id="qrNote" class="hint" hidden>このページはパソコンの中のアドレスで開かれているため、ほかの端末からは開けません。公開先のページで表示してください。</p>
@@ -236,16 +250,8 @@
           <input type="text" id="qrUrl" readonly aria-label="このアプリのURL">
           <button type="button" id="qrCopy">コピー</button>
         </div>
-      </section>
-
-      <section class="about-page" data-page="version" role="tabpanel" hidden>
-        <dl class="version-info">
-          <dt>アプリ名</dt><dd>Area3D（指定領域の3D表示）</dd>
-          <dt>バージョン</dt><dd id="appVersion"></dd>
-          <dt>データ出典</dt><dd><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院（地理院タイル）</a></dd>
-          <dt>ライブラリ</dt><dd>Leaflet 1.9.4、Three.js 0.160.0、qrcode-generator 1.4.4</dd>
-        </dl>
-      </section>
+        </div>
+      </details>
     </div>
   </dialog>
 
