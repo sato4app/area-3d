@@ -37,25 +37,9 @@
 
     <!-- コントロールパネル（地図の上に浮かぶ・どちらかの見出しをドラッグでまとめて移動） -->
     <div class="panel-stack" id="panelStack">
-    <aside class="panel" id="filePanel">
-      <div class="panel-header" id="filePanelHeader" title="ドラッグで移動">
-        <h2 class="panel-title">ファイル読み込み</h2>
-        <button id="filePanelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
-      </div>
-
-      <div class="panel-body">
-        <label class="file-btn">
-          GeoJSONファイルを選択
-          <input type="file" id="geojsonInput" accept=".geojson,.json,application/geo+json" multiple hidden>
-        </label>
-        <p class="hint">ファイル名をクリックするとその範囲へ移動します。</p>
-        <ul id="fileList" class="file-list"></ul>
-      </div>
-    </aside>
-
     <aside class="panel" id="panel">
       <div class="panel-header" id="panelHeader" title="ドラッグで移動">
-        <h1 class="panel-title">Area3D <span>指定領域の3D表示</span></h1>
+        <h1 class="panel-title">指定領域の3D表示</h1>
         <button id="panelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
       </div>
 
@@ -133,6 +117,22 @@
           <h2>情報</h2>
           <dl id="info" class="info"></dl>
         </section>
+      </div>
+    </aside>
+
+    <aside class="panel" id="filePanel">
+      <div class="panel-header" id="filePanelHeader" title="ドラッグで移動">
+        <h2 class="panel-title">ファイル読み込み</h2>
+        <button id="filePanelToggle" class="icon-btn" title="折りたたむ" aria-expanded="true">−</button>
+      </div>
+
+      <div class="panel-body">
+        <label class="file-btn">
+          GeoJSON / GPXファイルを選択
+          <input type="file" id="geojsonInput" accept=".geojson,.json,.gpx,application/geo+json,application/gpx+xml" multiple hidden>
+        </label>
+        <p class="hint">ファイル名をクリックするとその範囲へ移動します。</p>
+        <ul id="fileList" class="file-list"></ul>
       </div>
     </aside>
     </div>

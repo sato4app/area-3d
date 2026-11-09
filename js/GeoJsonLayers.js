@@ -1,4 +1,6 @@
-// GeoJSONファイルの読み込みと2D地図への表示
+// GeoJSON / GPX ファイルの読み込みと2D地図への表示
+
+import { gpxToGeoJson } from './gpx.js';
 
 // ファイルごとに順に割り当てる色（地図の赤枠 #d0302b と紛れない色）
 const COLORS = ['#1f6feb', '#e8590c', '#7b2cbf', '#0b8f6a', '#c2255c', '#b08900', '#0c8599'];
@@ -19,16 +21,22 @@ export class GeoJsonLayers {
    * @returns {Promise<object>} 追加した項目
    */
   async addFile(file) {
+    const text = await file.text();
     let data;
-    try {
-      data = JSON.parse(await file.text());
-    } catch {
-      throw new Error('JSONとして読み込めませんでした。');
+    if (isGpx(file, text)) {
+      // GPX は GeoJSON に変換してから同じように表示する
+      data = gpxToGeoJson(text);
+    } else {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('JSONとして読み込めませんでした。');
+      }
+      if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        throw new Error('GeoJSONの形式ではありません。');
+      }
+      data = connectRouteEnds(data);
     }
-    if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
-      throw new Error('GeoJSONの形式ではありません。');
-    }
-    data = connectRouteEnds(data);
 
     const color = COLORS[this._colorIndex++ % COLORS.length];
     const counts = { point: 0, line: 0, polygon: 0 };
@@ -46,7 +54,7 @@ export class GeoJsonLayers {
       });
     } catch (e) {
       console.error(e);
-      throw new Error('GeoJSONの座標データが正しくありません。');
+      throw new Error('座標データが正しくありません。');
     }
     if (layer.getLayers().length === 0) {
       throw new Error('地図に表示できる地物がありません。');
@@ -83,6 +91,11 @@ export class GeoJsonLayers {
   _find(id) {
     return this.items.find((i) => i.id === id);
   }
+}
+
+/** GPX ファイルか（拡張子 .gpx、または中身が XML で始まる） */
+function isGpx(file, text) {
+  return /\.gpx$/i.test(file.name) || text.trimStart().startsWith('<');
 }
 
 /**

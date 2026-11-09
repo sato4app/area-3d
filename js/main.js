@@ -220,7 +220,7 @@ els.shotBtn.addEventListener('click', () => {
   a.click();
 });
 
-// ---------- ファイル読み込み（GeoJSON を2D地図に表示） ----------
+// ---------- ファイル読み込み（GeoJSON / GPX を2D地図に表示） ----------
 const geojson = new GeoJsonLayers(mapSelector.map);
 
 els.geojsonInput.addEventListener('change', async () => {

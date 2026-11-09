@@ -102,7 +102,7 @@ body {
 .panel.collapsed .panel-body { display: none; }
 .panel.collapsed .panel-header { border-bottom: none; border-radius: 8px; }
 
-/* ファイル読み込みパネルは縮めず、Area3D パネルの中身をスクロールさせる */
+/* ファイル読み込みパネルは縮めず、「指定領域の3D表示」パネルの中身をスクロールさせる */
 #filePanel { flex-shrink: 0; }
 
 .panel section { margin-bottom: 14px; }
