@@ -42,4 +42,8 @@ export const FETCH_CONCURRENCY = 8;
 // 3Dメッシュの1辺あたりの最大分割数
 export const MAX_GRID_SEGMENTS = 512;
 
+// 3D描画の解像度の上限（画面密度の倍率）
+// 高精細なスマホ（3倍など）でも2倍までに抑え、描く画素数を減らして電池の消費・発熱を抑える
+export const MAX_PIXEL_RATIO = 2;
+
 export const GSI_SEARCH_URL = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=';

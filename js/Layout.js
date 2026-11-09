@@ -96,6 +96,7 @@ export function panelOverlapLeft(stack, mapElement) {
 
 /**
  * 地図と3Dビューの切り替え（同じ場所に重ねて置き、片方だけを表示）
+ * 切り替えるたびに views で 'viewchange' イベント（detail: '2d' | '3d'）を出す
  * @param {HTMLButtonElement} button 切り替えボタン（地図表示中は「3D」、3D表示中は「2D」）
  * @param {HTMLElement} views 2つのビューを重ねた親要素
  * @returns {(mode: '2d' | '3d') => void} 表示を切り替える関数
@@ -107,6 +108,7 @@ export function setupViewSwitch(button, views) {
     button.textContent = is3d ? '2D' : '3D';
     button.title = is3d ? '地図表示に戻る' : '3D表示に切り替え';
     button.classList.toggle('is-3d', is3d);
+    views.dispatchEvent(new CustomEvent('viewchange', { detail: mode }));
   };
   button.addEventListener('click', () => setMode(views.classList.contains('show-3d') ? '2d' : '3d'));
   setMode('2d');

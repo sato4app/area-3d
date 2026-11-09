@@ -75,6 +75,9 @@ mapSelector.setSize(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
 fitMapToArea();
 
 const viewer = new TerrainViewer($('viewer'));
+// 3Dビューが表示されている間だけ描画する（地図表示中は止めて電池の消費を抑える）
+$('views').addEventListener('viewchange', (e) => viewer.setActive(e.detail === '3d'));
+viewer.setActive($('views').classList.contains('show-3d'));
 viewer.setOverlayOpacity(readOverlayOpacity());
 viewer.onHover = (h) => {
   if (!h) {
