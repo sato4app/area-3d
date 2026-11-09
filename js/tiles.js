@@ -59,6 +59,7 @@ export class DemGrid {
     this.width = (range.x1 - range.x0 + 1) * TILE_SIZE;
     this.height = (range.y1 - range.y0 + 1) * TILE_SIZE;
     this.data = new Float32Array(this.width * this.height).fill(NaN);
+    this.loadedTiles = 0; // 取得できたタイル数（提供範囲外なら0）
   }
 
   /** 1枚の標高タイルPNGを数値に変換して格納 */
@@ -77,6 +78,7 @@ export class DemGrid {
         this.data[(oy + j) * this.width + (ox + i)] = h;
       }
     }
+    this.loadedTiles++;
   }
 
   /** グローバルピクセル座標で双線形補間（無効値は除外して加重平均） */

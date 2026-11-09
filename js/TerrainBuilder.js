@@ -1,6 +1,6 @@
 // 指定領域の標高グリッドと地表テクスチャを作成する
 
-import { DEM_LAYERS, MAX_GRID_SEGMENTS } from './config.js';
+import { DEM_LAYERS, DEM_CHAINS, MAX_GRID_SEGMENTS } from './config.js';
 import { computeBounds, boundsToPixels, lonToPx, latToPy } from './geo.js';
 import { loadDem, loadTexture } from './tiles.js';
 
@@ -9,7 +9,7 @@ import { loadDem, loadTexture } from './tiles.js';
  * @param {{lat:number, lon:number}} opts.center 中心点
  * @param {number} opts.width  横 x (m)
  * @param {number} opts.height 縦 y (m)
- * @param {string} opts.dem    'dem5a' | 'dem10b'
+ * @param {string} opts.dem    'dem1a' | 'dem5a' | 'dem10b'
  * @param {object} opts.mapLayer MAP_LAYERS の要素
  * @param {number} opts.texSize テクスチャの最大ピクセル数
  * @param {(msg:string)=>void} onStatus 進捗表示
@@ -19,20 +19,19 @@ export async function buildTerrain(opts, onStatus) {
   const bounds = computeBounds(center, width, height);
 
   // ---- 標高データ ----
+  // 選んだデータから順に取得し、データの無い所（水面など）は次のデータで補完する
+  // 例：1m → 5m → 10m
+  const chain = (DEM_CHAINS[opts.dem] ?? DEM_CHAINS.dem5a).map((key) => DEM_LAYERS[key]);
   const demUsed = [];
+  const fetchDem = (layer) =>
+    loadDem(bounds, layer, (d, t) => onStatus(`標高データ取得中（${layer.label}） ${d}/${t}`));
+
+  // 基本にするデータ（タイル数が多すぎて取得できないものは飛ばす）
   let primary = null;
-  if (opts.dem === 'dem5a') {
-    primary = await loadDem(bounds, DEM_LAYERS.dem5a, (d, t) => onStatus(`標高データ取得中（5m） ${d}/${t}`));
-    if (primary) demUsed.push('5m');
-  }
-  let secondary = null;
-  const loadDem10 = async () => {
-    const g = await loadDem(bounds, DEM_LAYERS.dem10b, (d, t) => onStatus(`標高データ取得中（10m） ${d}/${t}`));
-    if (!g) throw new Error('領域が広すぎて標高データを取得できません。サイズを小さくしてください。');
-    demUsed.push('10m');
-    return g;
-  };
-  if (!primary) primary = await loadDem10();
+  let next = 0;
+  while (!primary && next < chain.length) primary = await fetchDem(chain[next++]);
+  if (!primary) throw new Error('領域が広すぎて標高データを取得できません。サイズを小さくしてください。');
+  if (primary.loadedTiles > 0) demUsed.push(chain[next - 1].label);
 
   // メッシュの分割数：標高データの解像度に合わせる（上限あり）
   const demPx = boundsToPixels(bounds, primary.z);
@@ -50,13 +49,20 @@ export async function buildTerrain(opts, onStatus) {
   onStatus('標高を計算中…');
   const heights = sampleGrid(primary, lons, lats);
 
-  // 5mメッシュが無い場所は10mメッシュで補完
-  if (opts.dem === 'dem5a' && primary.z === DEM_LAYERS.dem5a.zoom && hasNaN(heights)) {
-    secondary = await loadDem10();
-    const fill = sampleGrid(secondary, lons, lats);
+  // データの無い場所は、より粗いデータで順に補完
+  while (next < chain.length && hasNaN(heights)) {
+    const layer = chain[next++];
+    const grid = await fetchDem(layer);
+    if (!grid || grid.loadedTiles === 0) continue;
+    const fill = sampleGrid(grid, lons, lats);
+    let used = false;
     for (let k = 0; k < heights.length; k++) {
-      if (Number.isNaN(heights[k])) heights[k] = fill[k];
+      if (Number.isNaN(heights[k]) && !Number.isNaN(fill[k])) {
+        heights[k] = fill[k];
+        used = true;
+      }
     }
+    if (used) demUsed.push(layer.label);
   }
 
   // それでも無い場所（海域など）は 0m

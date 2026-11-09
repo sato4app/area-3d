@@ -1,6 +1,6 @@
 // area-3d メイン：UIと各モジュールの連携
 
-import { DEFAULT_CENTER, DEFAULT_SIZE, SIZE_LIMIT, MAP_LAYERS, GSI_SEARCH_URL } from './config.js';
+import { DEFAULT_CENTER, DEFAULT_SIZE, SIZE_LIMIT, DEM1A_MAX_SIZE, MAP_LAYERS, GSI_SEARCH_URL } from './config.js';
 import { MapSelector } from './MapSelector.js';
 import { TerrainViewer } from './TerrainViewer.js';
 import { buildTerrain } from './TerrainBuilder.js';
@@ -28,6 +28,7 @@ const els = {
   overlayOpacity: $('overlayOpacity'),
   overlayOpacityOut: $('overlayOpacityOut'),
   dem: $('dem'),
+  demHint: $('demHint'),
   texSize: $('texSize'),
   buildBtn: $('buildBtn'),
   exag: $('exag'),
@@ -67,6 +68,7 @@ const mapSelector = new MapSelector(
   (s) => {
     els.width.value = s.width;
     els.height.value = s.height;
+    updateDemChoices();
   },
 );
 mapSelector.setSize(DEFAULT_SIZE.width, DEFAULT_SIZE.height);
@@ -82,6 +84,28 @@ viewer.onHover = (h) => {
   els.hover.textContent = `標高 ${h.elevation.toFixed(1)} m　(${h.lat.toFixed(5)}, ${h.lon.toFixed(5)})`;
   els.hover.classList.remove('hidden');
 };
+
+// 3Dビューの縮尺バー（画面下辺付近の地表での目安。2D地図と同じく最大150px）
+const SCALE_MAX_PX = 150;
+viewer.onScale = (mpp) => {
+  const box = $('scale3d');
+  if (!mpp || !Number.isFinite(mpp)) {
+    box.classList.add('hidden');
+    return;
+  }
+  const meters = niceLength(mpp * SCALE_MAX_PX);
+  const bar = $('scale3dBar');
+  bar.style.width = `${Math.round(meters / mpp)}px`;
+  bar.textContent = meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+  box.classList.remove('hidden');
+};
+
+/** max 以下で一番大きい「1・2・3・5 × 10のべき乗」の長さ(m) */
+function niceLength(max) {
+  const pow = 10 ** Math.floor(Math.log10(max));
+  const d = max / pow;
+  return Number((pow * (d >= 5 ? 5 : d >= 3 ? 3 : d >= 2 ? 2 : 1)).toPrecision(1)); // 0.30000000000000004 などを防ぐ
+}
 
 // ---------- 入力値 ----------
 function readCenter() {
@@ -115,8 +139,28 @@ for (const el of [els.width, els.height]) {
     }
     mapSelector.setSize(s.width, s.height);
     fitMapToArea();
+    updateDemChoices();
   });
 }
+
+// 1mメッシュは小さい領域（横・縦とも DEM1A_MAX_SIZE 以下）のときだけ選べる
+function canUseDem1a(size) {
+  return !!size && size.width <= DEM1A_MAX_SIZE && size.height <= DEM1A_MAX_SIZE;
+}
+
+function updateDemChoices() {
+  const ok = canUseDem1a(readSize());
+  els.dem.querySelector('option[value="dem1a"]').disabled = !ok;
+  // 1mメッシュを選んでいて領域が大きくなったら5mメッシュに戻す
+  const switched = !ok && els.dem.value === 'dem1a';
+  if (switched) els.dem.value = 'dem5a';
+  els.demHint.classList.toggle('warn', switched);
+  els.demHint.textContent = switched
+    ? `領域が${DEM1A_MAX_SIZE}mを超えたため、標高データを5mメッシュに切り替えました。`
+    : `1mメッシュは領域が横・縦とも${DEM1A_MAX_SIZE}m以下のときだけ選べます。`;
+}
+els.dem.addEventListener('change', updateDemChoices); // 切り替えの注意表示を消す
+updateDemChoices();
 
 els.layer.addEventListener('change', () => mapSelector.setBaseLayer(els.layer.value));
 
@@ -142,6 +186,9 @@ els.buildBtn.addEventListener('click', async () => {
   const size = readSize();
   if (!center) return alert('中心点の緯度・経度を正しく入力してください。');
   if (!size) return alert(`サイズは ${SIZE_LIMIT.min}〜${SIZE_LIMIT.max} m の範囲で指定してください。`);
+  if (els.dem.value === 'dem1a' && !canUseDem1a(size)) {
+    return alert(`1mメッシュは領域が横・縦とも ${DEM1A_MAX_SIZE} m 以下のときだけ使えます。`);
+  }
 
   els.buildBtn.disabled = true;
   els.placeholder.classList.add('hidden');
@@ -336,7 +383,7 @@ function showInfo(t) {
     ['最高標高', `${t.maxH.toFixed(1)} m`],
     ['最低標高', `${t.minH.toFixed(1)} m`],
     ['標高差', `${(t.maxH - t.minH).toFixed(1)} m`],
-    ['標高データ', t.demUsed.join(' + ')],
+    ['標高データ', t.demUsed.join(' + ') || 'なし'],
     ['地図ズーム', t.overlayZoom ? `${t.textureZoom}（重ね地図 ${t.overlayZoom}）` : `${t.textureZoom}`],
     ['メッシュ', `${t.segX} × ${t.segY}`],
   ];

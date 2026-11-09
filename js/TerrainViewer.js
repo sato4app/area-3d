@@ -6,6 +6,8 @@ import { metersPerDegLat, metersPerDegLon } from './geo.js';
 
 const WALL_COLOR = 0x8a6d4e;
 const BOTTOM_COLOR = 0x5e4a35;
+// 縮尺を測る高さ：画面の下辺から何px上か（縮尺バーの位置に合わせる）
+const SCALE_BAR_OFFSET_PX = 15;
 
 export class TerrainViewer {
   constructor(container) {
@@ -18,6 +20,9 @@ export class TerrainViewer {
     this.geojsonLayer = null;
     this.exaggeration = 1;
     this.onHover = null;
+    /** 縮尺が変わったときに呼ぶ（引数：画面下辺付近の地表での 1px あたりの m。求められなければ null） */
+    this.onScale = null;
+    this._scaleDirty = true;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -40,9 +45,16 @@ export class TerrainViewer {
     new ResizeObserver(() => this._resize()).observe(container);
     this._resize();
 
+    // 視点が動いたら縮尺を計算し直す（描画のついでに1フレーム1回だけ）
+    this.controls.addEventListener('change', () => { this._scaleDirty = true; });
+
     const loop = () => {
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
+      if (this._scaleDirty) {
+        this._scaleDirty = false;
+        this.onScale?.(this._metersPerPixelAtBottom());
+      }
       requestAnimationFrame(loop);
     };
     loop();
@@ -137,6 +149,7 @@ export class TerrainViewer {
     this.camera.updateProjectionMatrix();
     this.controls.maxDistance = size * 6;
     this.resetView();
+    this._scaleDirty = true;
   }
 
   /**
@@ -220,6 +233,63 @@ export class TerrainViewer {
   setExaggeration(value) {
     this.exaggeration = value;
     if (this.group) this.group.scale.y = value;
+    this._scaleDirty = true;
+  }
+
+  /**
+   * 画面下辺付近（縮尺バーを置く高さ）の地表での 1px あたりの距離(m)
+   * 透視投影なので場所ごとに縮尺が違う。下辺の中央から左右に少し離れた2点が
+   * 地表のどこに当たるかを求め、その距離から計算する
+   * 大きなメッシュとの交差判定は重いので、地表の高さは標高グリッドから引き、水平面との交点で近似する
+   */
+  _metersPerPixelAtBottom() {
+    if (!this.terrain) return null;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    if (!w || !h) return null;
+    const y = h - SCALE_BAR_OFFSET_PX;
+    const half = Math.min(60, w / 4);
+
+    const ray = (px) => {
+      const ndc = new THREE.Vector2((px / w) * 2 - 1, -(y / h) * 2 + 1);
+      const rc = new THREE.Raycaster();
+      rc.setFromCamera(ndc, this.camera);
+      return rc.ray;
+    };
+    // 水平面 y = planeY との交点（地平線より上を向いていれば null）
+    const hitPlane = (r, planeY) => {
+      if (r.direction.y >= -1e-6) return null;
+      const t = (planeY - r.origin.y) / r.direction.y;
+      return t > 0 ? r.origin.clone().addScaledVector(r.direction, t) : null;
+    };
+
+    // 中央の光線で地表の高さを求める（交点の標高で面を置き直すのを数回繰り返す）
+    const center = ray(w / 2);
+    let planeY = this.controls.target.y;
+    for (let n = 0; n < 4; n++) {
+      const p = hitPlane(center, planeY);
+      if (!p) return null;
+      const gy = this._surfaceY(p.x, p.z);
+      if (gy === null) break; // 領域の外を見ているときは直前の高さのまま
+      planeY = gy;
+    }
+    const a = hitPlane(ray(w / 2 - half), planeY);
+    const b = hitPlane(ray(w / 2 + half), planeY);
+    if (!a || !b) return null;
+    // 水平方向の距離（m）。高さ強調は縦方向だけなので水平距離には影響しない
+    const d = Math.hypot(a.x - b.x, a.z - b.z);
+    return d / (half * 2);
+  }
+
+  /** 地表の高さ（表示上の y 座標）。領域の外なら null */
+  _surfaceY(x, z) {
+    const { width: W, height: H, segX, segY, heights } = this.terrain;
+    const fi = ((x + W / 2) / W) * segX;
+    const fj = ((z + H / 2) / H) * segY;
+    if (fi < 0 || fj < 0 || fi > segX || fj > segY) return null;
+    const i = Math.round(fi);
+    const j = Math.round(fj);
+    return (heights[j * (segX + 1) + i] - this.baseH) * this.exaggeration;
   }
 
   resetView() {
@@ -285,6 +355,7 @@ export class TerrainViewer {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this._scaleDirty = true;
   }
 
   _disposeTerrain() {

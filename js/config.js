@@ -2,7 +2,7 @@
 
 // 初期表示位置（箕面大滝）
 export const DEFAULT_CENTER = { lat: 34.853667, lon: 135.472041 };
-export const DEFAULT_SIZE = { width: 2000, height: 2000 };
+export const DEFAULT_SIZE = { width: 500, height: 500 };
 export const SIZE_LIMIT = { min: 100, max: 20000 };
 
 const GSI_XYZ = 'https://cyberjapandata.gsi.go.jp/xyz';
@@ -18,9 +18,21 @@ export const MAP_LAYERS = {
 
 // 標高タイル（PNG形式）
 export const DEM_LAYERS = {
-  dem5a:  { url: `${GSI_XYZ}/dem5a_png/{z}/{x}/{y}.png`, zoom: 15 }, // 5mメッシュ（レーザ測量）
-  dem10b: { url: `${GSI_XYZ}/dem_png/{z}/{x}/{y}.png`,   zoom: 14 }, // 10mメッシュ
+  dem1a:  { label: '1m',  url: `${GSI_XYZ}/dem1a_png/{z}/{x}/{y}.png`, zoom: 17 }, // 1mメッシュ（レーザ測量）
+  dem5a:  { label: '5m',  url: `${GSI_XYZ}/dem5a_png/{z}/{x}/{y}.png`, zoom: 15 }, // 5mメッシュ（レーザ測量）
+  dem10b: { label: '10m', url: `${GSI_XYZ}/dem_png/{z}/{x}/{y}.png`,   zoom: 14 }, // 10mメッシュ
 };
+
+// 標高データの選択肢ごとの取得順（先頭が基本、データの無い所を後ろのデータで補完）
+export const DEM_CHAINS = {
+  dem1a:  ['dem1a', 'dem5a', 'dem10b'],
+  dem5a:  ['dem5a', 'dem10b'],
+  dem10b: ['dem10b'],
+};
+
+// 1mメッシュを使える領域の最大サイズ(m)（横・縦とも）
+// 3Dメッシュの分割数の上限(512)で1m間隔を保てるのは500m程度まで
+export const DEM1A_MAX_SIZE = 500;
 
 // タイル取得の上限（サーバー負荷・メモリ対策）
 export const MAX_TEXTURE_TILES = 256;
