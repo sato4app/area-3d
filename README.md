@@ -58,7 +58,7 @@ python -m http.server 8000
 
 ### GeoJSON / GPXファイルの表示（ファイル読み込みパネル）
 
-- 「GeoJSON / GPXファイルを選択」で `.geojson` / `.json` / `.gpx` を読み込み、2D地図と3Dビューに表示（複数ファイル可）。読み込むとその範囲へ地図を移動
+- 「GeoJSON/GPXファイルを選択」で `.geojson` / `.json` / `.gpx` を読み込み、2D地図と3Dビューに表示（複数ファイル可）。読み込むとその範囲へ地図を移動
 - GPX は GeoJSON に変換して表示：ウェイポイント（wpt）→ 点、ルート（rte）→ 線、トラック（trk）→ 線（セグメントが複数なら区切りのまま）。名前・説明・標高・時刻などを属性として持つ
 - LineString は線、Polygon は塗りつぶした領域（穴あき対応）、Point は丸印で表示。色はファイルごと。地理院地図の作図データの色指定（`_color` など）や simplestyle（`stroke` など）があればそれを優先
 - ルートの LineString は「開始点 → LineString の各点 → 終了点」をつないで表示。開始点・終了点は properties の `startPointGPS` / `endPointGPS`（無ければ `startPoint` / `endPoint` の ID と一致する Point 地物の `id` / `pointId`）から取る

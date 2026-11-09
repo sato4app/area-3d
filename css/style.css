@@ -37,8 +37,9 @@ body {
   top: 12px;
   left: 12px;
   z-index: 1100; /* Leaflet のコントロール(800)より上 */
-  width: 290px;
-  max-width: calc(100% - 24px);
+  width: 250px;
+  /* 狭い画面でも右上の［3D］／［2D］ボタン（幅56px＋右余白10px）と重ならないように、その分を空ける */
+  max-width: calc(100% - 12px - 80px);
   max-height: calc(100% - 24px);
   display: flex;
   flex-direction: column;
