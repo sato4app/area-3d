@@ -14,7 +14,6 @@ export function setupAbout(root) {
   $('.about-item[data-item="version"]').addEventListener('toggle', (e) => {
     if (e.currentTarget.open) checkVersion(root);
   });
-  $('#updateBtn').addEventListener('click', () => startUpdate(root));
 
   // QRコードは開いたときに作る
   $('.about-item[data-item="qr"]').addEventListener('toggle', (e) => {
@@ -35,11 +34,10 @@ export function setupAbout(root) {
 }
 
 let checking = false;
-let confirmedVersion = null; // 確認を出した最新版（同じ版について何度も確認を出さないため）
 
 /**
  * いまのバージョンを表示し、サーバーに新しい版が無いか確認する。
- * 新しい版があれば、更新するかどうかの確認を出す
+ * 新しい版があれば、更新するかどうかの確認を出す（キャンセルしても、開き直せばまた確認する）
  * （バージョンは service-worker.js の CACHE_VERSION だけで定義。"yyyy-mm-dd.n" 形式）
  */
 async function checkVersion(root) {
@@ -47,10 +45,8 @@ async function checkVersion(root) {
   checking = true;
   const versionEl = root.querySelector('#appVersion');
   const statusEl = root.querySelector('#updateStatus');
-  const button = root.querySelector('#updateBtn');
   versionEl.textContent = '確認中…';
   statusEl.textContent = '更新版を確認中…';
-  button.hidden = true;
 
   try {
     const current = await getCurrentVersion();
@@ -76,32 +72,19 @@ async function checkVersion(root) {
       return;
     }
     statusEl.textContent = `新しいバージョン ${latest} があります。`;
-    button.hidden = false;
-
-    if (confirmedVersion !== latest) {
-      confirmedVersion = latest;
-      const now = current ? `いまのバージョン：${current}\n` : '';
-      if (confirm(`新しいバージョンがあります。\n\n${now}新しいバージョン：${latest}\n\n更新しますか？（ページを読み込み直します）`)) {
-        startUpdate(root);
-      }
+    const now = current ? `いまのバージョン：${current}\n` : '';
+    if (!confirm(`新しいバージョンがあります。\n\n${now}新しいバージョン：${latest}\n\n更新しますか？（ページを読み込み直します）`)) {
+      return;
+    }
+    statusEl.textContent = '更新中…';
+    try {
+      await applyUpdate(); // 成功すればページが読み込み直される
+    } catch (e) {
+      console.warn('更新できませんでした', e);
+      statusEl.textContent = '更新できませんでした（インターネット接続を確認してください）。';
     }
   } finally {
     checking = false;
-  }
-}
-
-/** 最新版に更新してページを読み込み直す */
-async function startUpdate(root) {
-  const statusEl = root.querySelector('#updateStatus');
-  const button = root.querySelector('#updateBtn');
-  button.disabled = true;
-  statusEl.textContent = '更新中…';
-  try {
-    await applyUpdate();
-  } catch (e) {
-    console.warn('更新できませんでした', e);
-    statusEl.textContent = '更新できませんでした（インターネット接続を確認してください）。';
-    button.disabled = false;
   }
 }
 
