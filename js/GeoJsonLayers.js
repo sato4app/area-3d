@@ -30,7 +30,8 @@ export class GeoJsonLayers {
       try {
         data = JSON.parse(text);
       } catch {
-        throw new Error('JSONとして読み込めませんでした。');
+        // ファイル選択で種類を絞っていないので、GeoJSON・GPX 以外のファイルもここに来る
+        throw new Error('GeoJSON・GPXのファイルとして読み込めませんでした。');
       }
       if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
         throw new Error('GeoJSONの形式ではありません。');

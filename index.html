@@ -138,7 +138,8 @@
       <div class="panel-body">
         <label class="file-btn">
           GeoJSON / GPXファイルを選択
-          <input type="file" id="geojsonInput" accept=".geojson,.json,.gpx,application/geo+json,application/gpx+xml" multiple hidden>
+          <!-- accept（種類の絞り込み）は付けない：スマホでは .gpx / .geojson が「不明な種類」とみなされ選べなくなるため。中身は読み込み時に判定する -->
+          <input type="file" id="geojsonInput" multiple hidden>
         </label>
         <p class="hint">ファイル名をクリックするとその範囲へ移動します。</p>
         <ul id="fileList" class="file-list"></ul>
