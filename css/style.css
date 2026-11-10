@@ -534,11 +534,19 @@ button.primary:hover { background: var(--accent-hover); }
   font-variant-numeric: tabular-nums;
 }
 
-/* コンパス（3Dビューの右上、2D/3D切り替えボタンの下） */
-.compass {
+/* 3Dビュー右上の道具（2D/3D切り替えボタンの下にコンパス、その下に中心点移動ボタン） */
+.view-tools {
   position: absolute;
   top: 58px;
   right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* コンパス */
+.compass {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -585,6 +593,43 @@ button.primary:hover { background: var(--accent-hover); }
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+/* 中心点移動ボタン（十字形。前=上、後=下、左、右） */
+.pan-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  grid-template-rows: repeat(3, 30px);
+  gap: 2px;
+}
+
+.pan-pad.hidden { display: none; }
+
+.pan-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #8a8f84;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pan-btn:hover:not(:disabled) { background: #fff; }
+.pan-btn:disabled { opacity: 0.5; cursor: default; }
+
+.pan-front { grid-area: 1 / 2; }
+.pan-left { grid-area: 2 / 1; }
+.pan-right { grid-area: 2 / 3; }
+.pan-back { grid-area: 3 / 2; }
+
+.pan-arrow { font-size: 8px; color: var(--accent); }
+.pan-name { font-size: 12px; font-weight: bold; }
 
 .attribution {
   position: absolute;

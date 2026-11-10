@@ -102,8 +102,16 @@ export class TerrainViewer {
     this.requestRender();
   }
 
-  /** TerrainBuilder の結果を表示 */
-  setTerrain(terrain) {
+  /**
+   * TerrainBuilder の結果を表示
+   * @param {object} terrain
+   * @param {{keepView?: boolean}} [opts] keepView: 視点の向き・距離を変えない（中心点の移動時）
+   */
+  setTerrain(terrain, opts = {}) {
+    // 前の地形があるときだけ視点を引き継げる（注視点から見たカメラの位置を覚えておく）
+    const keepOffset = opts.keepView && this.terrain
+      ? this.camera.position.clone().sub(this.controls.target)
+      : null;
     this._disposeTerrain();
     this.terrain = terrain;
 
@@ -198,7 +206,15 @@ export class TerrainViewer {
     this.camera.far = size * 20;
     this.camera.updateProjectionMatrix();
     this.controls.maxDistance = size * 6;
-    this.resetView();
+    if (keepOffset) {
+      // 注視点は新しい領域の中央（高さは resetView と同じ決め方）に置き、カメラは同じ向き・距離に
+      const relief = (maxH - this.baseH) * this.exaggeration;
+      this.controls.target.set(0, relief * 0.4, 0);
+      this.camera.position.copy(this.controls.target).add(keepOffset);
+      this.controls.update();
+    } else {
+      this.resetView();
+    }
     this.requestRender();
   }
 
