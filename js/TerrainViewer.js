@@ -298,8 +298,9 @@ export class TerrainViewer {
   }
 
   /**
-   * 台座の4面の壁に、標高の目盛り（短い横線）と標高値を描く
-   * 各壁で「目盛りと文字が壁からはみ出さずに一番高くまで描ける位置」に1列並べる
+   * 台座の4面の壁に、標高の目盛り（横線）と標高値を描く
+   * 横線は壁のある所全体に、地表との境界（壁の上端）まで引く
+   * 文字は各壁で「壁からはみ出さずに一番高くまで描ける位置」に1列並べる
    * 高さ強調を変えたら作り直す（文字の大きさは変えず、間隔だけ変わる）
    */
   _buildElevScale() {
@@ -313,7 +314,8 @@ export class TerrainViewer {
     const toY = (e) => (e - baseH) * exag;
 
     // 目盛りの間隔：基本10m。画面上で線同士がくっつくほど狭いときだけ広げる
-    const tickStep = ELEV_STEPS.find((s) => s * exag >= size * 0.004) ?? ELEV_STEPS.at(-1);
+    // （線は壁全体に引くので、詰まりすぎると壁が線で黒っぽく見える）
+    const tickStep = ELEV_STEPS.find((s) => s * exag >= size * 0.006) ?? ELEV_STEPS.at(-1);
     // 文字を付ける間隔：読める大きさの文字が重ならない範囲で、なるべく全部の目盛りに付ける
     // （高さ強調が小さいと間隔が詰まるので、文字は1つおきなどに間引く）
     const minLabelH = size * 0.022;
@@ -321,10 +323,9 @@ export class TerrainViewer {
       ELEV_STEPS.find((s) => s >= tickStep && s % tickStep === 0 && s * exag * 0.9 >= minLabelH) ?? ELEV_STEPS.at(-1);
     const labelH = Math.min(size * 0.03, labelStep * exag * 0.9);
 
-    const lineW = size * 0.0025;    // 線の太さ（上下方向）
-    const minorLen = size * 0.015;  // 文字なし目盛りの長さ
-    const majorLen = size * 0.028;  // 文字付き目盛りの長さ
-    const pad = size * 0.005;       // 目盛りと文字の間
+    const lineW = size * 0.0025;    // 線の太さ（上下方向）。文字付きの線は少し太くする
+    const majorLen = size * 0.028;  // 文字の列の左端から文字までの距離
+    const pad = size * 0.005;       // 線と文字の間
     const lift = size * 0.001;      // 壁から少し浮かせる（ちらつき防止）
 
     const res = this._elevResources();
@@ -365,25 +366,61 @@ export class TerrainViewer {
 
       // 横線：まとめて1つの形状にする
       const verts = [];
+      const wallY = Array.from(hs, toY); // 壁の上端の高さ（表示上の y）
+      const wallTop = Math.max(...wallY);
+      // 多角形（反時計回り＝外側が表）を三角形に分けて追加
+      const addPoly = (pts) => {
+        for (let q = 1; q + 1 < pts.length; q++) {
+          verts.push(pts[0][0], pts[0][1], lift, pts[q][0], pts[q][1], lift, pts[q + 1][0], pts[q + 1][1], lift);
+        }
+      };
+      // 高さ y0〜y1 の帯を、壁の上端より下の部分だけ描く（gap の範囲は文字があるので空ける）
+      const drawBand = (y0, y1, gap) => {
+        const emit = (pts) => {
+          if (!gap) return addPoly(pts);
+          addPoly(clipPolygon(pts, (p) => gap[0] - p[0]));
+          addPoly(clipPolygon(pts, (p) => p[0] - gap[1]));
+        };
+        let runStart = null; // 帯がまるごと壁に収まる区間はつなげて1つの四角形にする
+        const flush = (xEnd) => {
+          if (runStart === null) return;
+          emit([[runStart, y0], [xEnd, y0], [xEnd, y1], [runStart, y1]]);
+          runStart = null;
+        };
+        for (let k = 0; k < n - 1; k++) {
+          const xa = xs[k], xb = xs[k + 1], ya = wallY[k], yb = wallY[k + 1];
+          if (ya >= y1 && yb >= y1) {
+            if (runStart === null) runStart = xa;
+            continue;
+          }
+          flush(xa);
+          if (ya <= y0 && yb <= y0) continue; // 壁がこの高さに届いていない
+          // 一部だけ壁に掛かる区間：壁の上端（地表との境界）の線で切り取る
+          const slope = (yb - ya) / (xb - xa);
+          emit(clipPolygon([[xa, y0], [xb, y0], [xb, y1], [xa, y1]], (p) => ya + (p[0] - xa) * slope - p[1]));
+        }
+        flush(xs[n - 1]);
+      };
+
       const first = Math.ceil(baseH / tickStep) * tickStep;
-      for (let e = first; e <= top; e += tickStep) {
+      for (let e = first; toY(e) < wallTop; e += tickStep) {
         const y = toY(e);
         if (y - lineW / 2 < 0) continue; // 台座の底より下は描かない
-        const labeled = e % labelStep === 0 && y - labelH / 2 >= 0 && y + labelH / 2 <= toY(top);
-        const x1 = x0 + (labeled ? majorLen : minorLen);
-        const y0 = y - lineW / 2;
-        const y1 = y + lineW / 2;
-        verts.push(x0, y0, lift, x1, y0, lift, x1, y1, lift);
-        verts.push(x0, y0, lift, x1, y1, lift, x0, y1, lift);
+        const labeled = e % labelStep === 0 && e <= top && y - labelH / 2 >= 0 && y + labelH / 2 <= toY(top);
+        const halfW = (labeled ? lineW * 1.5 : lineW) / 2;
+        let gap = null;
         if (labeled) {
           const { material, aspect } = res.label(`${e}m`);
           const w = labelH * aspect;
+          const left = x0 + majorLen + pad;
           const label = new THREE.Mesh(res.planeGeom, material);
           label.scale.set(w, labelH, 1);
-          label.position.set(x0 + majorLen + pad + w / 2, y, lift);
+          label.position.set(left + w / 2, y, lift);
           label.renderOrder = 3;
           side.add(label);
+          gap = [left - pad, left + w + pad];
         }
+        drawBand(y - halfW, y + halfW, gap);
       }
       if (verts.length) {
         const geom = new THREE.BufferGeometry();
@@ -622,6 +659,27 @@ export class TerrainViewer {
     this.overlay = null;
     this.geojsonLayer = null;
   }
+}
+
+/**
+ * 多角形を直線で切り取る（f(p) >= 0 の側を残す。f は1次式）
+ * @param {number[][]} pts 頂点 [x, y] の配列
+ * @param {(p:number[])=>number} f
+ */
+function clipPolygon(pts, f) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    const fa = f(a);
+    const fb = f(b);
+    if (fa >= 0) out.push(a);
+    if ((fa >= 0) !== (fb >= 0)) {
+      const t = fa / (fa - fb);
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return out;
 }
 
 /** 白い縁取り付きの黒文字を描いたキャンバス（縮尺バー・標高目盛りの文字） */
