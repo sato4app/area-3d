@@ -344,7 +344,10 @@ export class TerrainViewer {
       ELEV_STEPS.find((s) => s >= tickStep && s % tickStep === 0 && s * exag * 0.9 >= minLabelH) ?? ELEV_STEPS.at(-1);
     const labelH = Math.min(size * 0.03, labelStep * exag * 0.9);
 
-    const lineW = size * 0.0025;    // 線の太さ（上下方向）。文字付きの線は少し太くする
+    // 5本ごとの線（10mごとなら50mごと、20mごとなら100mごと）は太く・濃くして目立たせる
+    const majorStep = tickStep * 5;
+    const lineW = size * 0.0025;    // 線の太さ（上下方向）
+    const majorLineW = lineW * 2;   // 5本ごとの線の太さ
     const majorLen = size * 0.028;  // 文字の列の左端から文字までの距離
     const pad = size * 0.005;       // 線と文字の間
     const lift = size * 0.001;      // 壁から少し浮かせる（ちらつき防止）
@@ -385,18 +388,19 @@ export class TerrainViewer {
       side.position.set(wall.cx, 0, wall.cz);
       side.rotation.y = wall.rot;
 
-      // 横線：まとめて1つの形状にする
-      const verts = [];
+      // 横線：通常の線と5本ごとの線で、それぞれ1つの形状にまとめる
+      const minorVerts = [];
+      const majorVerts = [];
       const wallY = Array.from(hs, toY); // 壁の上端の高さ（表示上の y）
       const wallTop = Math.max(...wallY);
-      // 多角形（反時計回り＝外側が表）を三角形に分けて追加
-      const addPoly = (pts) => {
-        for (let q = 1; q + 1 < pts.length; q++) {
-          verts.push(pts[0][0], pts[0][1], lift, pts[q][0], pts[q][1], lift, pts[q + 1][0], pts[q + 1][1], lift);
-        }
-      };
       // 高さ y0〜y1 の帯を、壁の上端より下の部分だけ描く（gap の範囲は文字があるので空ける）
-      const drawBand = (y0, y1, gap) => {
+      const drawBand = (y0, y1, gap, verts) => {
+        // 多角形（反時計回り＝外側が表）を三角形に分けて追加
+        const addPoly = (pts) => {
+          for (let q = 1; q + 1 < pts.length; q++) {
+            verts.push(pts[0][0], pts[0][1], lift, pts[q][0], pts[q][1], lift, pts[q + 1][0], pts[q + 1][1], lift);
+          }
+        };
         const emit = (pts) => {
           if (!gap) return addPoly(pts);
           addPoly(clipPolygon(pts, (p) => gap[0] - p[0]));
@@ -426,9 +430,10 @@ export class TerrainViewer {
       const first = Math.ceil(baseH / tickStep) * tickStep;
       for (let e = first; toY(e) < wallTop; e += tickStep) {
         const y = toY(e);
-        if (y - lineW / 2 < 0) continue; // 台座の底より下は描かない
+        const major = e % majorStep === 0;
+        const halfW = (major ? majorLineW : lineW) / 2;
+        if (y - halfW < 0) continue; // 台座の底より下は描かない
         const labeled = e % labelStep === 0 && e <= top && y - labelH / 2 >= 0 && y + labelH / 2 <= toY(top);
-        const halfW = (labeled ? lineW * 1.5 : lineW) / 2;
         let gap = null;
         if (labeled) {
           const { material, aspect } = res.label(`${e}m`);
@@ -441,12 +446,13 @@ export class TerrainViewer {
           side.add(label);
           gap = [left - pad, left + w + pad];
         }
-        drawBand(y - halfW, y + halfW, gap);
+        drawBand(y - halfW, y + halfW, gap, major ? majorVerts : minorVerts);
       }
-      if (verts.length) {
+      for (const [verts, material] of [[minorVerts, res.tickMaterial], [majorVerts, res.majorTickMaterial]]) {
+        if (!verts.length) continue;
         const geom = new THREE.BufferGeometry();
         geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-        side.add(new THREE.Mesh(geom, res.tickMaterial));
+        side.add(new THREE.Mesh(geom, material));
       }
       scale.add(side);
     }
@@ -461,8 +467,15 @@ export class TerrainViewer {
     const labels = new Map();
     this._elevRes = {
       // 光の当たり方で色が変わらないよう陰影なし。壁のすぐ手前に描く
+      // 通常の線はやや淡く、5本ごとの線は黒にして区別しやすくする
       tickMaterial: new THREE.MeshBasicMaterial({
-        color: 0x222222,
+        color: 0x3a3028,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -4,
+      }),
+      majorTickMaterial: new THREE.MeshBasicMaterial({
+        color: 0x000000,
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -4,
@@ -659,6 +672,7 @@ export class TerrainViewer {
     this._disposeElevScale();
     if (this._elevRes) {
       this._elevRes.tickMaterial.dispose();
+      this._elevRes.majorTickMaterial.dispose();
       this._elevRes.planeGeom.dispose();
       for (const { material } of this._elevRes.labels.values()) {
         material.map.dispose();
