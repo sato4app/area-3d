@@ -18,7 +18,18 @@ html, body {
   background: var(--bg);
 }
 
+/* 画面全体を画面に固定し、ページ自体はスクロールさせない
+   （iPhone の Safari では、パネルのスクロールなどにつられてページ全体がずれ、
+   右上の［2D］ボタンやコンパスが画面の外へ隠れることがあるため） */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
+  position: fixed;
+  inset: 0;
+  height: auto;
   display: flex;
   flex-direction: column;
 }
@@ -97,6 +108,7 @@ body {
 
 .panel-body {
   overflow-y: auto;
+  overscroll-behavior: contain; /* 端までスクロールしても、ページ全体を動かさない */
   padding: 12px 14px;
 }
 
@@ -470,6 +482,9 @@ button.primary:hover { background: var(--accent-hover); }
   background: #fff;
   color: var(--accent);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  /* 独立した描画レイヤーにする：iPhone の Safari で、3D（WebGL）の画面の下に隠れて
+     描かれないことがあるのを防ぐ */
+  transform: translateZ(0);
 }
 
 .view-toggle:hover { background: #eef1ea; }
@@ -559,6 +574,9 @@ button.primary:hover { background: var(--accent-hover); }
   background: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  /* 3D（WebGL）の画面より必ず手前に描く（iPhone の Safari 対策。.view-toggle と同じ） */
+  z-index: 1;
+  transform: translateZ(0);
 }
 
 .compass.hidden { display: none; }

@@ -109,6 +109,8 @@ export function setupViewSwitch(button, views) {
     button.textContent = is3d ? '2D' : '3D';
     button.title = is3d ? '地図表示に戻る' : '3D表示に切り替え';
     button.classList.toggle('is-3d', is3d);
+    // 念のためページのずれを戻す（iPhone の Safari でページ全体がずれて右上のボタンが隠れることがあるため）
+    window.scrollTo(0, 0);
     views.dispatchEvent(new CustomEvent('viewchange', { detail: mode }));
   };
   button.addEventListener('click', () => setMode(views.classList.contains('show-3d') ? '2d' : '3d'));

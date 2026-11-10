@@ -6,7 +6,7 @@
 // アプリのバージョン（「このアプリについて」にもこの値を表示する。定義はここだけ）
 // 命名規則："yyyy-mm-dd.n"（yyyy-mm-dd は更新日、n はその日の1から始まる連番）
 // アプリ本体を変えたときは必ず更新する（古いキャッシュが消え、新しいファイルが使われる）
-const CACHE_VERSION = '2026-11-10.8';
+const CACHE_VERSION = '2026-11-10.9';
 const APP_CACHE = `area3d-app-${CACHE_VERSION}`;
 const LIB_CACHE = 'area3d-lib-v1';
 
