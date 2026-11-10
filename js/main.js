@@ -21,7 +21,12 @@ const DEG = Math.PI / 180;
 
 // ---------- レイアウト ----------
 // 地図と3Dビューは右上のボタンで切り替え
-const setViewMode = setupViewSwitch($('viewToggle'), $('views'));
+// 地図表示中に押したとき、中心点・領域サイズが3Dと変わっていれば（まだ3Dが無ければ）作り直してから3Dにする
+const setViewMode = setupViewSwitch($('viewToggle'), $('views'), () => {
+  if (!needsRebuild()) return false;
+  build({ keepView: sameSizeAsTerrain() });
+  return true;
+});
 // 「指定領域の3D表示」「ファイル読み込み」「このアプリについて」の3つのパネルはまとめて移動（上から順）
 const clampPanels = setupDraggable(
   $('panelStack'),
@@ -198,6 +203,28 @@ function moveCenter(screenAngle) {
   mapSelector.setCenter(c);
   fitMapToArea();
   build({ keepView: true });
+}
+
+/**
+ * ［3D］ボタンで作り直すか：まだ3Dが無いか、パネルの中心点・領域サイズが表示中の3Dと違うとき
+ * （地図の種類・標高データなど、ほかの設定の変更では作り直さない。それは「3D表示」ボタンで行う）
+ * 作り直し中は、終われば3Dになるので作り直さない
+ */
+function needsRebuild() {
+  const t = viewer.terrain;
+  if (building) return false;
+  if (!t) return true;
+  const c = readCenter();
+  if (!c) return true; // 入力が正しくなければ build() で知らせる
+  const EPS = 1e-7; // 度（パネルは小数6桁なので、それより細かい差は同じ場所とみなす）
+  return Math.abs(c.lat - t.center.lat) > EPS || Math.abs(c.lon - t.center.lon) > EPS || !sameSizeAsTerrain();
+}
+
+/** パネルの領域サイズが表示中の3Dと同じか（同じなら作り直しても視点の距離・向きをそのまま使える） */
+function sameSizeAsTerrain() {
+  const t = viewer.terrain;
+  const s = readSize();
+  return !!t && !!s && s.width === t.width && s.height === t.height;
 }
 
 // ---------- 3D表示 ----------
