@@ -5,7 +5,7 @@ export const QR_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generat
 
 // 初期表示位置（箕面大滝）
 export const DEFAULT_CENTER = { lat: 34.853667, lon: 135.472041 };
-export const DEFAULT_SIZE = { width: 500, height: 500 };
+export const DEFAULT_SIZE = { width: 300, height: 300 };
 export const SIZE_LIMIT = { min: 100, max: 20000 };
 
 const GSI_XYZ = 'https://cyberjapandata.gsi.go.jp/xyz';
