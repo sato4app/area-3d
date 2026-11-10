@@ -42,6 +42,11 @@ export const MAX_TEXTURE_TILES = 256;
 export const MAX_DEM_TILES = 150;
 export const FETCH_CONCURRENCY = 8;
 
+// 取得したタイルをメモリに取っておく量の上限(バイト。PNG/JPEGの圧縮されたままの大きさで数える)
+// 中心点を少し動かして作り直すとき、重なる部分のタイルを取り直さずに済む
+// 1回の3D表示で使うのは多くても十数MB(地図・重ね地図とも上限256枚)なので、直前の領域分は収まる
+export const TILE_CACHE_BYTES = 40 * 1024 * 1024;
+
 // 3Dメッシュの1辺あたりの最大分割数
 export const MAX_GRID_SEGMENTS = 512;
 

@@ -1,18 +1,77 @@
 // 国土地理院タイルの取得（標高タイル・地図タイル）
 
-import { FETCH_CONCURRENCY, MAX_DEM_TILES, MAX_TEXTURE_TILES } from './config.js';
+import { FETCH_CONCURRENCY, MAX_DEM_TILES, MAX_TEXTURE_TILES, TILE_CACHE_BYTES } from './config.js';
 import { TILE_SIZE, boundsToPixels, tileRange, tileCount } from './geo.js';
 
 function tileUrl(template, z, x, y) {
   return template.replace('{z}', z).replace('{x}', x).replace('{y}', y);
 }
 
+// ------------------------------------------------------------
+// タイルのメモリキャッシュ
+// ------------------------------------------------------------
+// URL → 取得結果（Blob、タイルが無い所は null）を、使った順に並べて持つ（Map は追加順を保つ）
+// 合計が TILE_CACHE_BYTES を超えたら、長く使っていないものから捨てる
+// 画像の展開後（ImageBitmap）ではなく圧縮されたままの Blob で持ち、メモリを抑える
+// 取得中のものは Promise を入れておき、同じタイルを同時に2回取りに行かないようにする
+const tileCache = new Map();
+let tileCacheBytes = 0;
+const NULL_TILE_BYTES = 64; // タイルが無い所（404）の記録の大きさの見積もり
+
+function cacheGet(url) {
+  const entry = tileCache.get(url);
+  if (!entry) return undefined;
+  // 使ったものを一番新しい位置へ
+  tileCache.delete(url);
+  tileCache.set(url, entry);
+  return entry.value;
+}
+
+function cacheSet(url, value, bytes) {
+  const old = tileCache.get(url);
+  if (old) {
+    tileCacheBytes -= old.bytes;
+    tileCache.delete(url);
+  }
+  tileCache.set(url, { value, bytes });
+  tileCacheBytes += bytes;
+  // 古いものから捨てる（取得中のものは大きさ0なので残る）
+  for (const [key, entry] of tileCache) {
+    if (tileCacheBytes <= TILE_CACHE_BYTES) break;
+    if (entry.value instanceof Promise) continue;
+    tileCache.delete(key);
+    tileCacheBytes -= entry.bytes;
+  }
+}
+
+/** タイルのデータを取得（存在しない場合は null）。メモリにあればそれを使う */
+async function fetchTileBlob(url) {
+  const cached = cacheGet(url);
+  if (cached !== undefined) return cached; // Blob・null・取得中の Promise のいずれか
+
+  const promise = (async () => {
+    const res = await fetch(url);
+    if (!res.ok) return null; // 海域などタイルが無い場所は404
+    return await res.blob();
+  })();
+  cacheSet(url, promise, 0);
+  try {
+    const blob = await promise;
+    cacheSet(url, blob, blob ? blob.size : NULL_TILE_BYTES);
+    return blob;
+  } catch (e) {
+    // 通信エラーは覚えない（次回また取りに行く）
+    const entry = tileCache.get(url);
+    if (entry && entry.value === promise) tileCache.delete(url);
+    throw e;
+  }
+}
+
 /** タイル画像を取得（存在しない場合は null） */
 async function fetchTileImage(url) {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null; // 海域などタイルが無い場所は404
-    const blob = await res.blob();
+    const blob = await fetchTileBlob(url);
+    if (!blob) return null;
     return await createImageBitmap(blob);
   } catch (e) {
     console.warn('タイル取得失敗:', url, e);
