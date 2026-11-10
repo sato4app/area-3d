@@ -149,6 +149,17 @@ select {
   background: #fff;
 }
 
+/* iPhone の Safari は、文字が16px未満の入力欄を押すと画面を自動で拡大し、そのまま戻さない
+   （地図と3Dビューは2本指の操作を自分で使うため、ページを縮めて戻すこともできなくなる）
+   タッチ操作の端末では入力欄の文字を16pxにして、自動の拡大を起こさないようにする */
+@media (pointer: coarse) {
+  input[type="text"],
+  input[type="number"],
+  select {
+    font-size: 16px;
+  }
+}
+
 input[type="range"] { width: 100%; }
 
 button {
