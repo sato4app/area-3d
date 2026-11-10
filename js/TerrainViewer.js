@@ -8,6 +8,9 @@ import { MAX_PIXEL_RATIO } from './config.js';
 const WALL_COLOR = 0x8a6d4e;
 const BOTTOM_COLOR = 0x5e4a35;
 
+// 壁面の標高目盛りの間隔の候補(m)。基本は10mごと、詰まりすぎるときは広げる
+const ELEV_STEPS = [10, 20, 50, 100, 200, 500, 1000, 2000];
+
 export class TerrainViewer {
   constructor(container) {
     this.container = container;
@@ -23,6 +26,9 @@ export class TerrainViewer {
     this.active = false; // 3Dビューが表示されているか（地図表示中は描画しない）
     this._frame = null;  // 予約済みの描画（requestAnimationFrame の ID）
     this.scaleBar = null; // 台座の4辺の外側に置く縮尺バー
+    this.elevScale = null; // 台座の4面の壁に描く標高目盛り
+    this._wallEdges = null; // 4面の壁の上端の形（標高目盛りの位置決めに使う）
+    this._elevRes = null;  // 標高目盛りの素材・文字画像（地形を作り直すまで使い回す）
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(pixelRatio());
@@ -162,6 +168,10 @@ export class TerrainViewer {
     this.scaleBar = this._buildScaleBar(W, H);
     this.scene.add(this.scaleBar);
 
+    // 壁面の標高目盛り：文字が高さ強調で縦に伸びないよう、これも地形とは別に置く
+    this._wallEdges = this._collectWallEdges(heights, nx, ny);
+    this._buildElevScale();
+
     const size = Math.max(W, H);
     this.camera.near = size / 2000;
     this.camera.far = size * 20;
@@ -255,7 +265,187 @@ export class TerrainViewer {
   setExaggeration(value) {
     this.exaggeration = value;
     if (this.group) this.group.scale.y = value;
+    if (this.terrain) this._buildElevScale(); // 目盛りの高さ・間隔を合わせ直す
     this.requestRender();
+  }
+
+  /**
+   * 4面の壁それぞれについて、壁に沿った位置と上端の標高を集める
+   * 各壁は「中心 (cx, cz)」「向き rot」のローカル座標で扱う（縮尺バーと同じ向き）：
+   * ローカル +z が台座の外側、ローカル +x は外から壁を見て右方向
+   */
+  _collectWallEdges(heights, nx, ny) {
+    const { width: W, height: H, segX, segY } = this.terrain;
+    const xAt = (i) => -W / 2 + (i / segX) * W;
+    const zAt = (j) => -H / 2 + (j / segY) * H;
+    const edge = (n, posFn, hFn) => {
+      const xs = new Float64Array(n);
+      const hs = new Float64Array(n);
+      for (let k = 0; k < n; k++) { xs[k] = posFn(k); hs[k] = hFn(k); }
+      return { xs, hs };
+    };
+    // xs が小さい順（外から見て左→右）になるよう、北・東は逆順に並べる
+    return [
+      // 南：ローカル x = 東西の x
+      { cx: 0, cz: H / 2, rot: 0, ...edge(nx, (k) => xAt(k), (k) => heights[(ny - 1) * nx + k]) },
+      // 北：ローカル x = -x
+      { cx: 0, cz: -H / 2, rot: Math.PI, ...edge(nx, (k) => -xAt(nx - 1 - k), (k) => heights[nx - 1 - k]) },
+      // 東：ローカル x = -z
+      { cx: W / 2, cz: 0, rot: Math.PI / 2, ...edge(ny, (k) => -zAt(ny - 1 - k), (k) => heights[(ny - 1 - k) * nx + (nx - 1)]) },
+      // 西：ローカル x = z
+      { cx: -W / 2, cz: 0, rot: -Math.PI / 2, ...edge(ny, (k) => zAt(k), (k) => heights[k * nx]) },
+    ];
+  }
+
+  /**
+   * 台座の4面の壁に、標高の目盛り（短い横線）と標高値を描く
+   * 各壁で「目盛りと文字が壁からはみ出さずに一番高くまで描ける位置」に1列並べる
+   * 高さ強調を変えたら作り直す（文字の大きさは変えず、間隔だけ変わる）
+   */
+  _buildElevScale() {
+    this._disposeElevScale();
+    if (!this.terrain || !this._wallEdges) return;
+
+    const { width: W, height: H, maxH } = this.terrain;
+    const size = Math.max(W, H);
+    const exag = this.exaggeration;
+    const baseH = this.baseH;
+    const toY = (e) => (e - baseH) * exag;
+
+    // 目盛りの間隔：基本10m。画面上で線同士がくっつくほど狭いときだけ広げる
+    const tickStep = ELEV_STEPS.find((s) => s * exag >= size * 0.004) ?? ELEV_STEPS.at(-1);
+    // 文字を付ける間隔：読める大きさの文字が重ならない範囲で、なるべく全部の目盛りに付ける
+    // （高さ強調が小さいと間隔が詰まるので、文字は1つおきなどに間引く）
+    const minLabelH = size * 0.022;
+    const labelStep =
+      ELEV_STEPS.find((s) => s >= tickStep && s % tickStep === 0 && s * exag * 0.9 >= minLabelH) ?? ELEV_STEPS.at(-1);
+    const labelH = Math.min(size * 0.03, labelStep * exag * 0.9);
+
+    const lineW = size * 0.0025;    // 線の太さ（上下方向）
+    const minorLen = size * 0.015;  // 文字なし目盛りの長さ
+    const majorLen = size * 0.028;  // 文字付き目盛りの長さ
+    const pad = size * 0.005;       // 目盛りと文字の間
+    const lift = size * 0.001;      // 壁から少し浮かせる（ちらつき防止）
+
+    const res = this._elevResources();
+    // 一番長い文字の幅で、目盛りの列が占める横幅を見積もる
+    const topLabel = Math.floor(maxH / labelStep) * labelStep;
+    const maxLabelW = labelH * res.label(`${topLabel}m`).aspect;
+    const span = majorLen + pad + maxLabelW;
+
+    const scale = new THREE.Group();
+    for (const wall of this._wallEdges) {
+      const { xs, hs } = wall;
+      const n = xs.length;
+      // [x0, x0 + span] の範囲での壁の上端の最低値（この高さまでなら目盛りが壁に収まる）
+      const topWithin = (k) => {
+        let m = Infinity;
+        for (let q = k; q < n && xs[q] <= xs[k] + span; q++) m = Math.min(m, hs[q]);
+        if (k > 0) m = Math.min(m, hs[k - 1]); // 線の左端が前の点との間に掛かる分
+        return m;
+      };
+      // 角の近くは隣の壁の目盛りと紛らわしいので避けて、一番高くまで描ける位置を探す
+      const margin = size * 0.02;
+      let best = null;
+      for (let k = 0; k < n; k++) {
+        if (xs[k] < xs[0] + margin || xs[k] + span > xs[n - 1] - margin) continue;
+        const top = topWithin(k);
+        if (!best || top > best.top) best = { x0: xs[k], top };
+      }
+      if (!best) {
+        // 壁が短くて収まらないときは中央に置く
+        const k = Math.max(0, xs.findIndex((x) => x >= -span / 2));
+        best = { x0: xs[k], top: topWithin(k) };
+      }
+      const { x0, top } = best;
+
+      const side = new THREE.Group();
+      side.position.set(wall.cx, 0, wall.cz);
+      side.rotation.y = wall.rot;
+
+      // 横線：まとめて1つの形状にする
+      const verts = [];
+      const first = Math.ceil(baseH / tickStep) * tickStep;
+      for (let e = first; e <= top; e += tickStep) {
+        const y = toY(e);
+        if (y - lineW / 2 < 0) continue; // 台座の底より下は描かない
+        const labeled = e % labelStep === 0 && y - labelH / 2 >= 0 && y + labelH / 2 <= toY(top);
+        const x1 = x0 + (labeled ? majorLen : minorLen);
+        const y0 = y - lineW / 2;
+        const y1 = y + lineW / 2;
+        verts.push(x0, y0, lift, x1, y0, lift, x1, y1, lift);
+        verts.push(x0, y0, lift, x1, y1, lift, x0, y1, lift);
+        if (labeled) {
+          const { material, aspect } = res.label(`${e}m`);
+          const w = labelH * aspect;
+          const label = new THREE.Mesh(res.planeGeom, material);
+          label.scale.set(w, labelH, 1);
+          label.position.set(x0 + majorLen + pad + w / 2, y, lift);
+          label.renderOrder = 3;
+          side.add(label);
+        }
+      }
+      if (verts.length) {
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        side.add(new THREE.Mesh(geom, res.tickMaterial));
+      }
+      scale.add(side);
+    }
+    this.elevScale = scale;
+    this.scene.add(scale);
+  }
+
+  /** 標高目盛りの素材と文字画像（同じ文字は4面で共用） */
+  _elevResources() {
+    if (this._elevRes) return this._elevRes;
+    const anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    const labels = new Map();
+    this._elevRes = {
+      // 光の当たり方で色が変わらないよう陰影なし。壁のすぐ手前に描く
+      tickMaterial: new THREE.MeshBasicMaterial({
+        color: 0x222222,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -4,
+      }),
+      planeGeom: new THREE.PlaneGeometry(1, 1), // 表は +z（台座の外側）。内側からは見えない
+      labels,
+      label(text) {
+        let item = labels.get(text);
+        if (!item) {
+          const canvas = makeTextCanvas(text);
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = anisotropy; // 斜めから見ても文字がぼやけにくいように
+          item = {
+            aspect: canvas.width / canvas.height,
+            material: new THREE.MeshBasicMaterial({
+              map: texture,
+              transparent: true,
+              depthWrite: false,
+              polygonOffset: true,
+              polygonOffsetFactor: -2,
+              polygonOffsetUnits: -8,
+            }),
+          };
+          labels.set(text, item);
+        }
+        return item;
+      },
+    };
+    return this._elevRes;
+  }
+
+  /** 標高目盛りを取り除く（素材・文字画像は使い回すので残す） */
+  _disposeElevScale() {
+    if (!this.elevScale) return;
+    this.scene.remove(this.elevScale);
+    this.elevScale.traverse((obj) => {
+      // 横線の形状だけ毎回作るので解放。文字の板は共用の形状
+      if (obj.isMesh && obj.geometry !== this._elevRes?.planeGeom) obj.geometry.dispose();
+    });
+    this.elevScale = null;
   }
 
   /**
@@ -316,22 +506,7 @@ export class TerrainViewer {
 
   /** 文字のスプライト（白い縁取り付きの黒文字） */
   _makeLabel(text, x, z, height) {
-    const font = 'bold 48px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.font = font;
-    canvas.width = Math.ceil(ctx.measureText(text).width) + 24;
-    canvas.height = 64;
-    ctx.font = font; // 大きさを変えると設定が消えるので設定し直す
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = '#fff';
-    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
-    ctx.fillStyle = '#222';
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-
+    const canvas = makeTextCanvas(text);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
@@ -423,6 +598,17 @@ export class TerrainViewer {
       });
       this.scaleBar = null;
     }
+    this._disposeElevScale();
+    if (this._elevRes) {
+      this._elevRes.tickMaterial.dispose();
+      this._elevRes.planeGeom.dispose();
+      for (const { material } of this._elevRes.labels.values()) {
+        material.map.dispose();
+        material.dispose();
+      }
+      this._elevRes = null;
+    }
+    this._wallEdges = null;
     if (!this.group) return;
     this.scene.remove(this.group);
     this.group.traverse((obj) => {
@@ -436,6 +622,26 @@ export class TerrainViewer {
     this.overlay = null;
     this.geojsonLayer = null;
   }
+}
+
+/** 白い縁取り付きの黒文字を描いたキャンバス（縮尺バー・標高目盛りの文字） */
+function makeTextCanvas(text) {
+  const font = 'bold 48px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = font;
+  canvas.width = Math.ceil(ctx.measureText(text).width) + 24;
+  canvas.height = 64;
+  ctx.font = font; // 大きさを変えると設定が消えるので設定し直す
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = '#fff';
+  ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+  ctx.fillStyle = '#222';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  return canvas;
 }
 
 /** max 以下で一番大きい「1・2・3・5 × 10のべき乗」の長さ(m) */
