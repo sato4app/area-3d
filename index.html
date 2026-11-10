@@ -35,12 +35,8 @@
       <div class="view" id="viewerView">
         <div id="viewer"></div>
         <div id="hover" class="hover hidden"></div>
-        <div class="view-tools">
-          <!-- 画面の上が向いている方角（視点を回すと連動。押すと北を上に） -->
-          <button type="button" id="compass" class="compass hidden" title="画面の上の方角（押すと北を上にします）"></button>
-          <!-- 中心点の移動（領域の20%ずつ。画面の前後左右に一番近い東西南北へ） -->
-          <div id="panPad" class="pan-pad hidden" role="group" aria-label="中心点の移動"></div>
-        </div>
+        <!-- 画面の上が向いている方角（視点を回すと連動）。押した方向へ中心点を移動 -->
+        <button type="button" id="compass" class="compass hidden" title="押した方向へ中心点を移動します（領域の20%）"></button>
         <div id="progress" class="progress hidden"></div>
         <div id="placeholder" class="placeholder">領域を指定して「3D表示」を押してください</div>
         <div class="attribution">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a></div>
@@ -179,8 +175,8 @@
           <li>「画像保存」で表示中の3DをPNG画像として保存します。</li>
           <li>台座の周りの縮尺バーで、おおよその距離が分かります。</li>
           <li>台座の4面の壁に、標高10mごとの横線（地表との境目まで、50mごとに太線）と標高値を表示します。</li>
-          <li>右上のコンパスは、画面の上が向いている方角を示します。視点を回すと一緒に回ります。押すと北が上になります。</li>
-          <li>コンパスの下の十字ボタンで、中心点を領域の20%ずつ東西南北へ移動して3Dを作り直します。ボタンは画面の前後左右に並び、視点の向きに一番近い方角（ボタンに表示）へ移動します。</li>
+          <li>右上のコンパスは、画面の上が向いている方角を示します。視点を回すと一緒に回ります。</li>
+          <li>コンパスの文字盤を押すと、中心から押した位置の方向（画面上の向き）へ、中心点を領域の20%だけ移動して3Dを作り直します。視点の向きはそのままです。</li>
         </ul>
         <h3>ファイル読み込み</h3>
         <ul>

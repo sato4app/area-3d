@@ -4,7 +4,6 @@ import { DEFAULT_CENTER, DEFAULT_SIZE, SIZE_LIMIT, DEM1A_MAX_SIZE, MAP_LAYERS, G
 import { MapSelector } from './MapSelector.js';
 import { TerrainViewer } from './TerrainViewer.js';
 import { Compass } from './Compass.js';
-import { PanPad } from './PanPad.js';
 import { metersPerDegLat, metersPerDegLon } from './geo.js';
 import { buildTerrain } from './TerrainBuilder.js';
 import { GeoJsonLayers } from './GeoJsonLayers.js';
@@ -17,7 +16,8 @@ registerServiceWorker();
 
 const $ = (id) => document.getElementById(id);
 
-const PAN_RATIO = 0.2; // 中心点移動ボタン1回で動かす距離（領域の横・縦に対する割合）
+const PAN_RATIO = 0.2; // コンパスを1回押して動かす距離（領域の横・縦に対する割合）
+const DEG = Math.PI / 180;
 
 // ---------- レイアウト ----------
 // 地図と3Dビューは右上のボタンで切り替え
@@ -103,8 +103,10 @@ viewer.onHover = (h) => {
   els.hover.textContent = `標高 ${h.elevation.toFixed(1)} m　(${h.lat.toFixed(5)}, ${h.lon.toFixed(5)})`;
   els.hover.classList.remove('hidden');
 };
-// コンパス：視点を回すたびに画面の上の方角へ合わせる。押すと北を上にする
-const compass = new Compass($('compass'), () => viewer.faceNorth());
+// コンパス：視点を回すたびに画面の上の方角へ合わせる。
+// 押すと、押した位置の方向（画面上の向き）へ中心点を移動する
+const compass = new Compass($('compass'), (angle) => moveCenter(angle));
+viewer.onHeadingChange = (deg) => compass.setHeading(deg);
 
 // ---------- 入力値 ----------
 function readCenter() {
@@ -179,23 +181,16 @@ els.overlayOpacity.addEventListener('input', () => {
   viewer.setOverlayOpacity(v);
 });
 
-// 中心点の移動：表示中の領域の20%ずつ東西南北へずらして3Dを作り直す（視点の向きはそのまま）
-const panPad = new PanPad($('panPad'), (dir) => moveCenter(dir));
-viewer.onHeadingChange = (deg) => {
-  compass.setHeading(deg);
-  panPad.setHeading(deg);
-};
-
-function moveCenter(dir) {
+// 中心点の移動：表示中の領域の20%だけ、コンパスで押した方向へずらして3Dを作り直す（視点の向きはそのまま）
+// 東西方向は横幅の20%、南北方向は縦幅の20%を基準に、斜めはその楕円上の距離で動かす
+/** @param {number} screenAngle 画面上の向き（度。上=0、右=90） */
+function moveCenter(screenAngle) {
   const t = viewer.terrain;
   if (!t || building) return;
-  const dLat = (t.height * PAN_RATIO) / metersPerDegLat();
-  const dLon = (t.width * PAN_RATIO) / metersPerDegLon(t.center.lat);
-  const c = { ...t.center };
-  if (dir === 'north') c.lat += dLat;
-  else if (dir === 'south') c.lat -= dLat;
-  else if (dir === 'east') c.lon += dLon;
-  else if (dir === 'west') c.lon -= dLon;
+  const az = DEG * (viewer.heading() + screenAngle); // 地図上の方位角（北=0、東=90）
+  const dLat = (Math.cos(az) * t.height * PAN_RATIO) / metersPerDegLat();
+  const dLon = (Math.sin(az) * t.width * PAN_RATIO) / metersPerDegLon(t.center.lat);
+  const c = { lat: t.center.lat + dLat, lon: t.center.lon + dLon };
   if (Math.abs(c.lat) > 85) return;
   c.lon = ((c.lon + 540) % 360) - 180; // 経度±180度をまたいだとき
   els.lat.value = c.lat.toFixed(6);
@@ -224,8 +219,8 @@ async function build(opts = {}) {
   }
 
   building = true;
+  compass.setBusy(true);
   els.buildBtn.disabled = true;
-  panPad.setDisabled(true);
   els.placeholder.classList.add('hidden');
   setViewMode('3d'); // 作成の進み具合が見えるように先に3Dへ切り替える
   showProgress('準備中…');
@@ -246,7 +241,6 @@ async function build(opts = {}) {
     await nextFrame();
     viewer.setTerrain(terrain, { keepView: opts.keepView });
     compass.setVisible(true);
-    panPad.setVisible(true);
     update3dGeoJson();
     showInfo(terrain);
   } catch (e) {
@@ -256,8 +250,8 @@ async function build(opts = {}) {
   } finally {
     hideProgress();
     building = false;
+    compass.setBusy(false);
     els.buildBtn.disabled = false;
-    panPad.setDisabled(false);
   }
 }
 

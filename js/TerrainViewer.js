@@ -92,16 +92,6 @@ export class TerrainViewer {
     return ((deg % 360) + 360) % 360;
   }
 
-  /** 視点の高さ・距離はそのままで、北が画面の上になるよう回す */
-  faceNorth() {
-    if (!this.terrain) return;
-    const offset = this.camera.position.clone().sub(this.controls.target);
-    offset.set(0, offset.y, Math.hypot(offset.x, offset.z)); // 注視点の真南にカメラを置く
-    this.camera.position.copy(this.controls.target).add(offset);
-    this.controls.update();
-    this.requestRender();
-  }
-
   /**
    * TerrainBuilder の結果を表示
    * @param {object} terrain
