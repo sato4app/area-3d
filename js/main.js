@@ -3,6 +3,7 @@
 import { DEFAULT_CENTER, DEFAULT_SIZE, SIZE_LIMIT, DEM1A_MAX_SIZE, MAP_LAYERS, GSI_SEARCH_URL } from './config.js';
 import { MapSelector } from './MapSelector.js';
 import { TerrainViewer } from './TerrainViewer.js';
+import { Compass } from './Compass.js';
 import { buildTerrain } from './TerrainBuilder.js';
 import { GeoJsonLayers } from './GeoJsonLayers.js';
 import { drawGeoJsonCanvas } from './GeoJsonDrape.js';
@@ -98,6 +99,9 @@ viewer.onHover = (h) => {
   els.hover.textContent = `標高 ${h.elevation.toFixed(1)} m　(${h.lat.toFixed(5)}, ${h.lon.toFixed(5)})`;
   els.hover.classList.remove('hidden');
 };
+// コンパス：視点を回すたびに画面の上の方角へ合わせる。押すと北を上にする
+const compass = new Compass($('compass'), () => viewer.faceNorth());
+viewer.onHeadingChange = (deg) => compass.setHeading(deg);
 
 // ---------- 入力値 ----------
 function readCenter() {
@@ -202,6 +206,7 @@ els.buildBtn.addEventListener('click', async () => {
     showProgress('3Dモデル作成中…');
     await nextFrame();
     viewer.setTerrain(terrain);
+    compass.setVisible(true);
     update3dGeoJson();
     showInfo(terrain);
   } catch (e) {

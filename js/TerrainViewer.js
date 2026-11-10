@@ -22,6 +22,7 @@ export class TerrainViewer {
     this.geojsonLayer = null;
     this.exaggeration = 1;
     this.onHover = null;
+    this.onHeadingChange = null; // 画面の上が向いている方位角(度。北=0、東=90)を描画のたびに通知
     // 描画は必要なときだけ行う（電池の消費を抑えるため）
     this.active = false; // 3Dビューが表示されているか（地図表示中は描画しない）
     this._frame = null;  // 予約済みの描画（requestAnimationFrame の ID）
@@ -78,7 +79,27 @@ export class TerrainViewer {
       // 動きが止まれば予約されず、描画も止まる
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
+      this.onHeadingChange?.(this.heading());
     });
+  }
+
+  /**
+   * 画面の上が向いている方位角（度。北=0、東=90、0〜360）
+   * OrbitControls の方位角は「注視点から見たカメラの向き」で、南(+z)にカメラがあれば0（北を向いている）
+   */
+  heading() {
+    const deg = THREE.MathUtils.radToDeg(-this.controls.getAzimuthalAngle());
+    return ((deg % 360) + 360) % 360;
+  }
+
+  /** 視点の高さ・距離はそのままで、北が画面の上になるよう回す */
+  faceNorth() {
+    if (!this.terrain) return;
+    const offset = this.camera.position.clone().sub(this.controls.target);
+    offset.set(0, offset.y, Math.hypot(offset.x, offset.z)); // 注視点の真南にカメラを置く
+    this.camera.position.copy(this.controls.target).add(offset);
+    this.controls.update();
+    this.requestRender();
   }
 
   /** TerrainBuilder の結果を表示 */

@@ -35,6 +35,8 @@
       <div class="view" id="viewerView">
         <div id="viewer"></div>
         <div id="hover" class="hover hidden"></div>
+        <!-- 画面の上が向いている方角（視点を回すと連動。押すと北を上に） -->
+        <button type="button" id="compass" class="compass hidden" title="画面の上の方角（押すと北を上にします）"></button>
         <div id="progress" class="progress hidden"></div>
         <div id="placeholder" class="placeholder">領域を指定して「3D表示」を押してください</div>
         <div class="attribution">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a></div>
@@ -173,6 +175,7 @@
           <li>「画像保存」で表示中の3DをPNG画像として保存します。</li>
           <li>台座の周りの縮尺バーで、おおよその距離が分かります。</li>
           <li>台座の4面の壁に、標高10mごとの横線（地表との境目まで）と標高値を表示します。</li>
+          <li>右上のコンパスは、画面の上が向いている方角を示します。視点を回すと一緒に回ります。押すと北が上になります。</li>
         </ul>
         <h3>ファイル読み込み</h3>
         <ul>
