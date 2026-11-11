@@ -44,6 +44,36 @@ export function drawGeoJsonCanvas(bounds, items, maxSize) {
   return canvas;
 }
 
+// 点の丸印の半径（キャンバス長辺400pxあたりのpx。drawPoint で使う）
+const POINT_RADIUS = 5;
+
+/**
+ * 3Dの地表に描いた点の丸印の、地上での半径(m)
+ * キャンバスの長辺は領域の長い方の辺にあたる
+ */
+export function pointRadiusMeters(width, height) {
+  return (POINT_RADIUS * Math.max(width, height)) / 400;
+}
+
+/**
+ * 表示する GeoJSON の点（Point / MultiPoint）を集める（3Dでマーカーをタップしたときの判定用）
+ * @param {{data:object}[]} items
+ * @returns {{lon:number, lat:number, properties:object}[]}
+ */
+export function collectPoints(items) {
+  const out = [];
+  const walk = (g, properties) => {
+    if (!g) return;
+    if (g.type === 'Point') out.push({ lon: g.coordinates[0], lat: g.coordinates[1], properties });
+    else if (g.type === 'MultiPoint') for (const c of g.coordinates) out.push({ lon: c[0], lat: c[1], properties });
+    else if (g.type === 'GeometryCollection') for (const child of g.geometries || []) walk(child, properties);
+  };
+  for (const item of items) {
+    for (const f of toFeatures(item.data)) walk(f.geometry, f.properties || {});
+  }
+  return out.filter((p) => Number.isFinite(p.lon) && Number.isFinite(p.lat));
+}
+
 /** FeatureCollection / Feature / ジオメトリ単体 / 配列 を Feature の配列にそろえる */
 function toFeatures(data) {
   if (!data) return [];
@@ -118,7 +148,7 @@ function drawPolygon(ctx, rings, style, project, scale) {
 function drawPoint(ctx, coord, style, project, scale) {
   const [x, y] = project(coord);
   ctx.beginPath();
-  ctx.arc(x, y, 5 * scale, 0, Math.PI * 2);
+  ctx.arc(x, y, POINT_RADIUS * scale, 0, Math.PI * 2);
   ctx.fillStyle = style.fillColor;
   ctx.fill();
   ctx.lineWidth = style.weight * scale;

@@ -37,6 +37,11 @@
         <div id="hover" class="hover hidden"></div>
         <!-- 画面の上が向いている方角（視点を回すと連動）。押した方向へ中心点を移動 -->
         <button type="button" id="compass" class="compass hidden" title="押した方向へ中心点を移動します（領域の20%）"></button>
+        <!-- タップしたマーカー（GeoJSON の点）の名称 -->
+        <div id="markerPopup" class="marker-popup hidden">
+          <span id="markerPopupName" class="marker-popup-name"></span>
+          <button type="button" id="markerPopupClose" class="marker-popup-close" title="閉じる" aria-label="閉じる">×</button>
+        </div>
         <!-- 一辺のサイズ（指を離すと縦横同じ長さの正方形で作り直す） -->
         <div id="sizeBar" class="size-bar hidden">
           <label for="sizeSlider">一辺</label>
@@ -190,6 +195,7 @@
         <ul>
           <li>GeoJSON（.geojson / .json）と GPX（.gpx）を読み込めます。複数まとめて選べます。</li>
           <li>ルートや地点は2D地図と3Dの地表の両方に描かれます。</li>
+          <li>3Dで地点の丸印をタップすると、名称を吹き出しで表示します。何も無い所をタップするか×で閉じます。</li>
           <li>一覧のチェックで表示／非表示、ファイル名クリックでその場所へ移動、×で削除します。</li>
         </ul>
         <h3>パネル</h3>

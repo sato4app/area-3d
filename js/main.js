@@ -7,7 +7,7 @@ import { Compass } from './Compass.js';
 import { metersPerDegLat, metersPerDegLon } from './geo.js';
 import { buildTerrain } from './TerrainBuilder.js';
 import { GeoJsonLayers } from './GeoJsonLayers.js';
-import { drawGeoJsonCanvas } from './GeoJsonDrape.js';
+import { drawGeoJsonCanvas, collectPoints, pointRadiusMeters } from './GeoJsonDrape.js';
 import { setupDraggable, setupCollapsible, setupViewSwitch, panelOverlapLeft, MAIN_PANEL_KEY } from './Layout.js';
 import { setupAbout } from './About.js';
 import { registerServiceWorker } from './pwa.js';
@@ -63,6 +63,9 @@ const els = {
   searchForm: $('searchForm'),
   searchInput: $('searchInput'),
   searchResults: $('searchResults'),
+  markerPopup: $('markerPopup'),
+  markerPopupName: $('markerPopupName'),
+  markerPopupClose: $('markerPopupClose'),
   sizeBar: $('sizeBar'),
   sizeSlider: $('sizeSlider'),
   sizeOut: $('sizeOut'),
@@ -374,6 +377,7 @@ els.geojsonInput.addEventListener('change', async () => {
 });
 
 function renderFileList() {
+  hideMarkerPopup(); // ファイルの追加・削除でマーカーが変わるので閉じる
   els.fileList.innerHTML = '';
   for (const item of geojson.items) {
     const li = document.createElement('li');
@@ -385,6 +389,7 @@ function renderFileList() {
     check.title = '表示／非表示';
     check.addEventListener('change', () => {
       geojson.setVisible(item.id, check.checked);
+      hideMarkerPopup();
       li.classList.toggle('off', !check.checked);
       update3dGeoJson();
     });
@@ -424,6 +429,70 @@ function update3dGeoJson() {
   if (!t) return;
   const visible = geojson.items.filter((i) => i.visible);
   viewer.setGeoJsonCanvas(drawGeoJsonCanvas(t.bounds, visible, t.texSize));
+}
+
+// ---------- 3Dのマーカー（GeoJSON の点）をタップして名称を表示 ----------
+// マーカーは地表の画像に描いた丸印なので、各点の画面上の位置とタップ位置の近さで判定する
+const TAP_TOLERANCE_PX = 22; // 指で押しやすいよう、丸印が小さく見えるときもこの距離までは当たりとする
+const NAME_KEYS = ['name', '名称', 'title', 'タイトル', 'pointId', 'id'];
+let popupPoint = null; // ポップアップを出している点
+
+viewer.onTap = (x, y) => {
+  const p = pickMarker(x, y);
+  if (p) showMarkerPopup(p);
+  else hideMarkerPopup();
+};
+// 視点を動かしても、ポップアップがマーカーに付いて動くように
+viewer.onRender = () => positionMarkerPopup();
+els.markerPopupClose.addEventListener('click', hideMarkerPopup);
+
+/** タップ位置に一番近いマーカー（無ければ null） */
+function pickMarker(x, y) {
+  const t = viewer.terrain;
+  if (!t) return null;
+  const rMeters = pointRadiusMeters(t.width, t.height);
+  let best = null;
+  for (const p of collectPoints(geojson.items.filter((i) => i.visible))) {
+    const pos = viewer.surfacePoint(p.lat, p.lon);
+    if (!pos) continue;
+    const s = viewer.toScreen(pos);
+    if (!s.visible) continue;
+    // 丸印の画面上の半径（近づくと大きく見えるので、その分も当たりにする）
+    const edge = viewer.toScreen(pos.clone().setX(pos.x + rMeters));
+    const rPx = Math.hypot(edge.x - s.x, edge.y - s.y);
+    const d = Math.hypot(s.x - x, s.y - y);
+    if (d <= Math.max(TAP_TOLERANCE_PX, rPx + 4) && (!best || d < best.d)) best = { d, p };
+  }
+  return best?.p ?? null;
+}
+
+function markerName(props) {
+  for (const key of NAME_KEYS) {
+    const v = props[key];
+    if (v !== null && v !== undefined && v !== '') return String(v);
+  }
+  return '（名称なし）';
+}
+
+function showMarkerPopup(p) {
+  popupPoint = p;
+  els.markerPopupName.textContent = markerName(p.properties);
+  positionMarkerPopup();
+}
+
+function hideMarkerPopup() {
+  popupPoint = null;
+  els.markerPopup.classList.add('hidden');
+}
+
+function positionMarkerPopup() {
+  if (!popupPoint) return;
+  const pos = viewer.surfacePoint(popupPoint.lat, popupPoint.lon);
+  if (!pos) return hideMarkerPopup(); // 中心点の移動などで領域の外に出た
+  const s = viewer.toScreen(pos);
+  els.markerPopup.classList.toggle('hidden', !s.visible);
+  els.markerPopup.style.left = `${s.x}px`;
+  els.markerPopup.style.top = `${s.y}px`;
 }
 
 function countText({ point, line, polygon }) {

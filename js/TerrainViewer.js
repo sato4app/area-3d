@@ -23,6 +23,8 @@ export class TerrainViewer {
     this.exaggeration = 1;
     this.onHover = null;
     this.onHeadingChange = null; // 画面の上が向いている方位角(度。北=0、東=90)を描画のたびに通知
+    this.onRender = null; // 描画のたびに呼ぶ（画面上の位置に合わせて動かすものの更新用）
+    this.onTap = null;    // 3Dの画面をタップ（クリック）したとき。引数は画面内の位置(px)
     // 描画は必要なときだけ行う（電池の消費を抑えるため）
     this.active = false; // 3Dビューが表示されているか（地図表示中は描画しない）
     this._frame = null;  // 予約済みの描画（requestAnimationFrame の ID）
@@ -52,6 +54,7 @@ export class TerrainViewer {
     this.controls.addEventListener('change', () => this.requestRender());
 
     this._setupHover();
+    this._setupTap();
     new ResizeObserver(() => this._resize()).observe(container);
     this._resize();
   }
@@ -80,7 +83,46 @@ export class TerrainViewer {
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
       this.onHeadingChange?.(this.heading());
+      this.onRender?.();
     });
+  }
+
+  /**
+   * 緯度経度の地表の位置（3D空間の座標。高さ強調を含む）。領域の外なら null
+   * 地表の頂点は緯度・経度に対して等間隔に並んでいるので、標高の格子から双線形補間で求める（重い判定は使わない）
+   */
+  surfacePoint(lat, lon) {
+    const t = this.terrain;
+    if (!t) return null;
+    const { north, south, east, west } = t.bounds;
+    const u = (lon - west) / (east - west);
+    const v = (north - lat) / (north - south);
+    if (!(u >= 0 && u <= 1 && v >= 0 && v <= 1)) return null;
+    const nx = t.segX + 1;
+    const fx = u * t.segX;
+    const fy = v * t.segY;
+    const i = Math.min(Math.floor(fx), t.segX - 1);
+    const j = Math.min(Math.floor(fy), t.segY - 1);
+    const dx = fx - i;
+    const dy = fy - j;
+    const h = (a, b) => t.heights[b * nx + a];
+    const elev =
+      h(i, j) * (1 - dx) * (1 - dy) + h(i + 1, j) * dx * (1 - dy) +
+      h(i, j + 1) * (1 - dx) * dy + h(i + 1, j + 1) * dx * dy;
+    return new THREE.Vector3(-t.width / 2 + u * t.width, (elev - this.baseH) * this.exaggeration, -t.height / 2 + v * t.height);
+  }
+
+  /**
+   * 3D空間の座標 → 画面内の位置(px)。visible はカメラの前（描画範囲の奥行き内）にあるか
+   * @param {THREE.Vector3} p
+   */
+  toScreen(p) {
+    const v = p.clone().project(this.camera);
+    return {
+      x: ((v.x + 1) / 2) * this.container.clientWidth,
+      y: ((1 - v.y) / 2) * this.container.clientHeight,
+      visible: v.z > -1 && v.z < 1,
+    };
   }
 
   /**
@@ -650,6 +692,32 @@ export class TerrainViewer {
         });
       }, 80);
     });
+  }
+
+  /**
+   * タップ（クリック）の検出：1本指（左ボタン）で押して、ほとんど動かさずに短い時間で離したとき
+   * 回転・移動のドラッグや2本指の操作はタップとみなさない
+   */
+  _setupTap() {
+    const el = this.renderer.domElement;
+    const downs = new Map(); // 押している指（ポインター）ごとの押した位置・時刻
+    let multi = false;       // 2本以上で触れたか（すべて離すまで続く）
+    el.addEventListener('pointerdown', (e) => {
+      downs.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), button: e.button });
+      if (downs.size > 1) multi = true;
+    });
+    const end = (e, cancelled) => {
+      const d = downs.get(e.pointerId);
+      downs.delete(e.pointerId);
+      const wasMulti = multi;
+      if (downs.size === 0) multi = false;
+      if (!d || cancelled || wasMulti || d.button !== 0) return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8 || performance.now() - d.t > 600) return;
+      const rect = el.getBoundingClientRect();
+      this.onTap?.(e.clientX - rect.left, e.clientY - rect.top);
+    };
+    el.addEventListener('pointerup', (e) => end(e, false));
+    el.addEventListener('pointercancel', (e) => end(e, true));
   }
 
   _resize() {
