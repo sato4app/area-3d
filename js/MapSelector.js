@@ -138,7 +138,7 @@ export class MapSelector {
     }
   }
 
-  /** 頂点ハンドル（見た目10px・掴める範囲は広め）：ドラッグすると中心はそのままでサイズを変更 */
+  /** 頂点ハンドル（見た目10px・掴める範囲は広め）：ドラッグすると中心はそのままで、正方形のままサイズを変更 */
   _createCornerHandle(corner) {
     const handle = L.marker([this.center.lat, this.center.lon], {
       draggable: true,
@@ -154,11 +154,13 @@ export class MapSelector {
 
     handle.on('drag', () => {
       const ll = handle.getLatLng();
-      // 中心から頂点までの距離の2倍が横・縦のサイズ（反対側へ越えても対称に扱う）
-      const width = clampSize(Math.abs(ll.lng - this.center.lon) * metersPerDegLon(this.center.lat) * 2);
-      const height = clampSize(Math.abs(ll.lat - this.center.lat) * metersPerDegLat() * 2);
-      if (width === this.size.width && height === this.size.height) return;
-      this.size = { width, height };
+      // 縦横同じ長さ（正方形）のまま大きさを変える：一辺は中心から頂点までの東西・南北の距離の長い方の2倍
+      // （反対側へ越えても対称に扱う）
+      const dx = Math.abs(ll.lng - this.center.lon) * metersPerDegLon(this.center.lat);
+      const dy = Math.abs(ll.lat - this.center.lat) * metersPerDegLat();
+      const side = clampSize(Math.max(dx, dy) * 2);
+      if (side === this.size.width && side === this.size.height) return;
+      this.size = { width: side, height: side };
       this._updateArea(handle); // ドラッグ中のハンドルはマウスに追従させる
       this.onSizeChange?.(this.size);
     });
