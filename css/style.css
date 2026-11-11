@@ -621,6 +621,47 @@ button.primary:hover { background: var(--accent-hover); }
   font-variant-numeric: tabular-nums;
 }
 
+/* 3Dビュー下部の一辺のサイズのスライダー（出典表示の上） */
+.size-bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 1;
+  /* 中央寄せ＋独立した描画レイヤー（iPhone の Safari で WebGL の下に隠れないように） */
+  transform: translateX(-50%) translateZ(0);
+  width: min(420px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.size-bar.hidden { display: none; }
+
+.size-bar label {
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.size-bar input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  touch-action: manipulation;
+}
+
+.size-bar output {
+  min-width: 64px;
+  font-size: 13px;
+  font-weight: bold;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .attribution {
   position: absolute;
   right: 4px;

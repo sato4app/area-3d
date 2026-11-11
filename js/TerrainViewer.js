@@ -95,13 +95,16 @@ export class TerrainViewer {
   /**
    * TerrainBuilder の結果を表示
    * @param {object} terrain
-   * @param {{keepView?: boolean}} [opts] keepView: 視点の向き・距離を変えない（中心点の移動時）
+   * @param {{keepView?: boolean}} [opts] keepView: 視点の向きを変えない（中心点の移動・サイズ変更時）
+   *   距離は領域の大きさに合わせて伸び縮みさせ、見た目の大きさを保つ
    */
   setTerrain(terrain, opts = {}) {
     // 前の地形があるときだけ視点を引き継げる（注視点から見たカメラの位置を覚えておく）
-    const keepOffset = opts.keepView && this.terrain
-      ? this.camera.position.clone().sub(this.controls.target)
-      : null;
+    let keepOffset = null;
+    if (opts.keepView && this.terrain) {
+      const scale = Math.max(terrain.width, terrain.height) / Math.max(this.terrain.width, this.terrain.height);
+      keepOffset = this.camera.position.clone().sub(this.controls.target).multiplyScalar(scale);
+    }
     this._disposeTerrain();
     this.terrain = terrain;
 

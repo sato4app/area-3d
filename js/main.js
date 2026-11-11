@@ -24,7 +24,7 @@ const DEG = Math.PI / 180;
 // 地図表示中に押したとき、中心点・領域サイズが3Dと変わっていれば（まだ3Dが無ければ）作り直してから3Dにする
 const setViewMode = setupViewSwitch($('viewToggle'), $('views'), () => {
   if (!needsRebuild()) return false;
-  build({ keepView: sameSizeAsTerrain() });
+  build({ keepView: true });
   return true;
 });
 // 「指定領域の3D表示」「ファイル読み込み」「このアプリについて」の3つのパネルはまとめて移動（上から順）
@@ -63,6 +63,9 @@ const els = {
   searchForm: $('searchForm'),
   searchInput: $('searchInput'),
   searchResults: $('searchResults'),
+  sizeBar: $('sizeBar'),
+  sizeSlider: $('sizeSlider'),
+  sizeOut: $('sizeOut'),
   geojsonInput: $('geojsonInput'),
   fileList: $('fileList'),
 };
@@ -220,12 +223,50 @@ function needsRebuild() {
   return Math.abs(c.lat - t.center.lat) > EPS || Math.abs(c.lon - t.center.lon) > EPS || !sameSizeAsTerrain();
 }
 
-/** パネルの領域サイズが表示中の3Dと同じか（同じなら作り直しても視点の距離・向きをそのまま使える） */
+/** パネルの領域サイズが表示中の3Dと同じか */
 function sameSizeAsTerrain() {
   const t = viewer.terrain;
   const s = readSize();
   return !!t && !!s && s.width === t.width && s.height === t.height;
 }
+
+// ---------- 3Dビュー下部の一辺のサイズ（正方形） ----------
+// 100m〜20kmを均等に刻むと小さい領域で細かく選べないので、切りのよい値を段階で選ぶ
+const SIDE_STEPS = [100, 150, 200, 300, 400, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000, 7000, 10000, 15000, 20000];
+els.sizeSlider.max = SIDE_STEPS.length - 1;
+
+function formatSide(m) {
+  return m >= 1000 ? `${m / 1000} km` : `${m} m`;
+}
+
+/** スライダーを表示中の3Dに合わせる（正方形でなければ長い方の辺に近い段階に置き、表示は横×縦） */
+function syncSizeSlider() {
+  const t = viewer.terrain;
+  if (!t) return;
+  const side = Math.max(t.width, t.height);
+  let best = 0;
+  for (let i = 1; i < SIDE_STEPS.length; i++) {
+    if (Math.abs(Math.log(SIDE_STEPS[i] / side)) < Math.abs(Math.log(SIDE_STEPS[best] / side))) best = i;
+  }
+  els.sizeSlider.value = best;
+  els.sizeOut.textContent = t.width === t.height ? formatSide(t.width) : `${formatSide(t.width)} × ${formatSide(t.height)}`;
+}
+
+// 動かしている間は値だけ表示し、指を離したら縦横とも同じ長さ（正方形）にして作り直す
+els.sizeSlider.addEventListener('input', () => {
+  els.sizeOut.textContent = formatSide(SIDE_STEPS[els.sizeSlider.value]);
+});
+els.sizeSlider.addEventListener('change', () => {
+  const side = SIDE_STEPS[els.sizeSlider.value];
+  const t = viewer.terrain;
+  if (!t || building || (t.width === side && t.height === side)) return syncSizeSlider();
+  els.width.value = side;
+  els.height.value = side;
+  mapSelector.setSize(side, side);
+  fitMapToArea();
+  updateDemChoices(); // 1mメッシュで500mを超えたら5mメッシュに切り替える
+  build({ keepView: true });
+});
 
 // ---------- 3D表示 ----------
 let building = false;
@@ -247,6 +288,7 @@ async function build(opts = {}) {
 
   building = true;
   compass.setBusy(true);
+  els.sizeSlider.disabled = true;
   els.buildBtn.disabled = true;
   els.placeholder.classList.add('hidden');
   setViewMode('3d'); // 作成の進み具合が見えるように先に3Dへ切り替える
@@ -268,6 +310,7 @@ async function build(opts = {}) {
     await nextFrame();
     viewer.setTerrain(terrain, { keepView: opts.keepView });
     compass.setVisible(true);
+    els.sizeBar.classList.remove('hidden');
     update3dGeoJson();
     showInfo(terrain);
   } catch (e) {
@@ -278,6 +321,8 @@ async function build(opts = {}) {
     hideProgress();
     building = false;
     compass.setBusy(false);
+    els.sizeSlider.disabled = false;
+    syncSizeSlider(); // 失敗したときは表示中の3Dの大きさに戻す
     els.buildBtn.disabled = false;
   }
 }
