@@ -66,6 +66,7 @@ const els = {
   markerPopup: $('markerPopup'),
   markerPopupName: $('markerPopupName'),
   markerPopupClose: $('markerPopupClose'),
+  locate3d: $('locate3d'),
   sizeBar: $('sizeBar'),
   sizeSlider: $('sizeSlider'),
   sizeOut: $('sizeOut'),
@@ -271,6 +272,64 @@ els.sizeSlider.addEventListener('change', () => {
   build({ keepView: true });
 });
 
+// ---------- 現在地を中心点にする（2D地図・3Dビューの両方にボタン） ----------
+// 照準の形のアイコン
+const LOCATE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+  <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/>
+  <path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg>`;
+
+const locate2d = mapSelector.addButton({
+  title: '現在地を中心点にする',
+  html: LOCATE_ICON,
+  className: 'locate-2d',
+  onClick: () => centerOnCurrentLocation(false),
+});
+els.locate3d.innerHTML = LOCATE_ICON;
+els.locate3d.addEventListener('click', () => centerOnCurrentLocation(true));
+
+let locating = false;
+
+/**
+ * 現在地を取得して中心点にする
+ * @param {boolean} rebuild3d 3Dビューから押されたとき true（取得後に3Dを作り直す。視点の向きはそのまま）
+ */
+function centerOnCurrentLocation(rebuild3d) {
+  if (locating) return;
+  if (!navigator.geolocation) return alert('この端末・ブラウザでは現在地を取得できません。');
+  setLocating(true);
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      setLocating(false);
+      const c = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      els.lat.value = c.lat.toFixed(6);
+      els.lon.value = c.lon.toFixed(6);
+      mapSelector.setCenter(c);
+      fitMapToArea();
+      if (rebuild3d && viewer.terrain) build({ keepView: true });
+    },
+    (err) => {
+      setLocating(false);
+      alert(locateErrorMessage(err));
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+  );
+}
+
+function setLocating(on) {
+  locating = on;
+  for (const btn of [locate2d, els.locate3d]) btn.classList.toggle('locating', on);
+}
+
+function locateErrorMessage(err) {
+  if (err.code === err.PERMISSION_DENIED) {
+    return window.isSecureContext
+      ? '現在地の利用が許可されていません。ブラウザ（端末）の設定で、このサイトの位置情報の利用を許可してください。'
+      : 'このページは https で開かれていないため、現在地を取得できません。';
+  }
+  if (err.code === err.TIMEOUT) return '現在地の取得に時間がかかりすぎました。もう一度お試しください。';
+  return '現在地を取得できませんでした。電波の届く所でもう一度お試しください。';
+}
+
 // ---------- 3D表示 ----------
 let building = false;
 els.buildBtn.addEventListener('click', () => build());
@@ -291,6 +350,7 @@ async function build(opts = {}) {
 
   building = true;
   compass.setBusy(true);
+  els.locate3d.disabled = true;
   els.sizeSlider.disabled = true;
   els.buildBtn.disabled = true;
   els.placeholder.classList.add('hidden');
@@ -313,6 +373,7 @@ async function build(opts = {}) {
     await nextFrame();
     viewer.setTerrain(terrain, { keepView: opts.keepView });
     compass.setVisible(true);
+    els.locate3d.classList.remove('hidden');
     els.sizeBar.classList.remove('hidden');
     update3dGeoJson();
     showInfo(terrain);
@@ -324,6 +385,7 @@ async function build(opts = {}) {
     hideProgress();
     building = false;
     compass.setBusy(false);
+    els.locate3d.disabled = false;
     els.sizeSlider.disabled = false;
     syncSizeSlider(); // 失敗したときは表示中の3Dの大きさに戻す
     els.buildBtn.disabled = false;

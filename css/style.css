@@ -494,6 +494,28 @@ button.primary:hover { background: var(--accent-hover); }
 /* 右上の地図コントロール（ズーム）は切り替えボタンの下へずらす */
 .leaflet-top.leaflet-right { top: 50px; }
 
+/* 地図右上（ズームボタンの下）に追加するボタン：Leaflet のズームボタンと同じ大きさ・見た目 */
+.leaflet-bar .map-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.leaflet-bar .map-btn:hover { background: #f4f4f4; }
+.map-btn svg { width: 20px; height: 20px; }
+
+/* 現在地を取得している間はアイコンを点滅させる（2D・3D共通） */
+.locating svg { animation: locating-blink 0.8s ease-in-out infinite alternate; }
+@keyframes locating-blink { from { opacity: 1; } to { opacity: 0.25; } }
+
 /* 領域の頂点ハンドル（ドラッグでサイズ変更）
    要素自体は透明な広い掴み範囲で、見た目の10pxの四角は ::before で中央に描く */
 .leaflet-marker-icon.corner-handle {
@@ -620,6 +642,33 @@ button.primary:hover { background: var(--accent-hover); }
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+/* 3Dビューの現在地ボタン（コンパスの下、コンパスと中心をそろえる） */
+.locate-3d {
+  position: absolute;
+  top: 158px;
+  right: 22px; /* コンパス（幅64px・右10px）の中心に合わせる */
+  z-index: 1;
+  transform: translateZ(0); /* iPhone の Safari で WebGL の下に隠れないように */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #8a8f84;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--accent);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.locate-3d:hover:not(:disabled) { background: #fff; }
+.locate-3d:disabled { opacity: 0.6; cursor: progress; }
+.locate-3d.hidden { display: none; }
+.locate-3d svg { width: 22px; height: 22px; }
 
 /* 3Dでタップしたマーカーの名称（マーカーの真上に吹き出しで表示。位置は描画のたびに JS で合わせる） */
 .marker-popup {

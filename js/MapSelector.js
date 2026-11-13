@@ -117,6 +117,31 @@ export class MapSelector {
     this.map.invalidateSize();
   }
 
+  /**
+   * 右上（ズームボタンの下）にボタンを追加する
+   * @param {{title:string, html:string, className?:string, onClick:() => void}} opts
+   * @returns {HTMLButtonElement}
+   */
+  addButton({ title, html, className = '', onClick }) {
+    let button;
+    const Control = L.Control.extend({
+      onAdd: () => {
+        const bar = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        button = L.DomUtil.create('button', `map-btn ${className}`, bar);
+        button.type = 'button';
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        button.innerHTML = html;
+        // 押しても地図のクリック・ドラッグにならないように
+        L.DomEvent.disableClickPropagation(bar);
+        L.DomEvent.on(button, 'click', onClick);
+        return bar;
+      },
+    });
+    new Control({ position: 'topright' }).addTo(this.map);
+    return button;
+  }
+
   _applyCenter(center, notify) {
     this.center = center;
     this.marker.setLatLng([center.lat, center.lon]);
